@@ -11,7 +11,7 @@
 ### Workflow
 1. Pull latest `main`
 2. Create a feature/fix branch
-3. Make changes, test locally (`python data_analyzer.py`)
+3. Make changes, test locally (`python data_analyzer_main.py`)
 4. Push branch and open a Pull Request
 5. At least one reviewer approves before merging
 6. Squash merge into `main`
@@ -28,7 +28,7 @@ docs: add EMG data format specification
 ## Code Organization
 
 ```
-data_analyzer.py      # Main window, Analyzer tab, entry point
+data_analyzer_main.py      # Main window, Analyzer tab, entry point
 src/
   utils.py            # Shared utilities (filters, gait detection, I/O)
   pages/
@@ -37,7 +37,7 @@ src/
 
 ### Adding a New Tab
 1. Create `src/pages/your_page.py` with a class extending `QtWidgets.QWidget`
-2. Import and add the tab in `data_analyzer.py` (search for `addTab`)
+2. Import and add the tab in `data_analyzer_main.py` (search for `addTab`)
 3. Use the same pattern as existing pages: accept `load_csv_func` and `get_bundles_func` callbacks
 4. Add documentation in `docs/`
 
@@ -51,7 +51,7 @@ src/
 ## Testing
 
 Before submitting a PR, verify:
-1. App launches without errors: `python data_analyzer.py`
+1. App launches without errors: `python data_analyzer_main.py`
 2. All 4 tabs load correctly
 3. Load at least one sample CSV and confirm plots render
 4. If you changed signal processing, test with multiple datasets

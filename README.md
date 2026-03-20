@@ -9,7 +9,7 @@ Interactive visualization of angles, velocities, torques, power, and gait cycles
 
 ```
 Exo-Data-Analysis-GUI/
-├── data_analyzer.py        # Main entry point (run this)
+├── data_analyzer_main.py   # Main entry point (run this)
 ├── environment.yaml        # Conda environment specification
 │
 ├── src/                    # Source code modules
@@ -25,10 +25,12 @@ Exo-Data-Analysis-GUI/
 │   ├── PLOTTING_GUIDE.md   # Plotting conventions and best practices
 │   └── DATA_FORMAT.md      # Data format specification and column mapping
 │
-├── scripts/                # Utility shell scripts for dev tasks
-├── sample_data/            # Example CSV datasets
-├── debug_data/             # Debug/test datasets
-└── output/                 # Auto-generated figures and reports
+├── scripts/                # Utility shell scripts and Git guide
+│
+├── data_output/            # All data and output in one place
+│   ├── sample_data/        # Example CSV datasets
+│   ├── debug_data/         # Debug/test datasets
+│   └── output/             # Auto-generated figures and reports
 ```
 
 ## Data Format (Quick Reference)
@@ -65,7 +67,7 @@ conda env create -f environment.yaml
 
 ### Run
 ```bash
-python data_analyzer.py
+python data_analyzer_main.py
 ```
 
 ### Basic Workflow

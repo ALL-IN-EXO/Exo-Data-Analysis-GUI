@@ -455,7 +455,7 @@ class GaitCyclePage(QtWidgets.QWidget):
 
     def save_pdf(self):
         name = self.save_name.text().strip() or "gait_cycle"
-        out_dir = os.path.join(os.path.dirname(__file__), "..", "output")
+        out_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data_output", "output")
         out_dir = os.path.abspath(out_dir)
         os.makedirs(out_dir, exist_ok=True)
         path = os.path.join(out_dir, f"{name}.pdf")

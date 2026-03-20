@@ -329,7 +329,7 @@ class ReportPage(QtWidgets.QWidget):
         summary_avg = pd.DataFrame(avg_rows)
         summary_avg = summary_avg[["subject", "tag"] + avg_cols]
 
-        out_dir = os.path.join(os.path.dirname(__file__), "..", "output")
+        out_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data_output", "output")
         out_dir = os.path.abspath(out_dir)
         os.makedirs(out_dir, exist_ok=True)
 
