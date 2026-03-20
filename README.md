@@ -1,102 +1,91 @@
-# Hip Exo Data Analyzer (v1.0)
+# Hip Exo Data Analyzer
 
-## Overview
-This application provides a complete workflow for analyzing hip exoskeleton CSV data:
-1. Interactive signal visualization (angles, velocities, torques, PD, power).
-2. Gait cycle extraction and comparison across tags or subjects.
-3. Streaming filter + delay alignment for raw torque.
-4. Batch reporting for all files/tags with CSV export.
+A PyQt5 desktop application for analyzing hip exoskeleton biomechanical data.
+Interactive visualization of angles, velocities, torques, power, and gait cycles.
 
-System Requirements
-1. Python 3.8+.
-2. Packages: `PyQt5`, `matplotlib`, `pandas`, `numpy`, `scipy`.
+**Current Version: v1.0** (Released 2026-03-10) | [Full Changelog](docs/CHANGELOG.md)
 
-## 1. Quick Start
-Install
-1. Install dependencies with pip:
-```bash
-pip install pyqt5 matplotlib pandas numpy scipy
+## Project Structure
+
 ```
-2. Or use the environment file:
+Exo-Data-Analysis-GUI/
+├── data_analyzer_main.py   # Main entry point (run this)
+├── CLAUDE.md               # AI assistant guide (auto-loaded by Claude Code)
+├── environment.yaml        # Conda environment specification
+│
+├── src/                    # Source code modules
+│   ├── utils.py            # Signal processing utilities (filters, gait detection)
+│   └── pages/              # GUI tab modules
+│       ├── gait_cycle_page.py     # Gait cycle analysis tab
+│       ├── filter_delay_page.py   # Filter-delay alignment tab
+│       └── report_page.py         # Batch reporting tab
+│
+├── docs/                   # Documentation
+│   ├── CHANGELOG.md        # Version history and updates
+│   ├── CONTRIBUTING.md     # Collaboration guide (branching, PR, code style)
+│   ├── PLOTTING_GUIDE.md   # Plotting conventions and best practices
+│   └── DATA_FORMAT.md      # Data format specification and column mapping
+│
+├── scripts/                # Utility shell scripts and Git guide
+│
+├── data_output/            # All data and output in one place
+│   ├── sample_data/        # Example CSV datasets
+│   ├── debug_data/         # Debug/test datasets
+│   └── output/             # Auto-generated figures and reports
+```
+
+## Data Format (Quick Reference)
+
+Input: CSV files with biomechanical time-series data.
+
+| Column | Required | Description |
+|--------|----------|-------------|
+| `Time_ms` | Yes | Timestamp (ms, seconds, or datetime) |
+| `imu_LTx` | Yes | Left hip angle (deg) |
+| `imu_RTx` | Yes | Right hip angle (deg) |
+| `imu_Lvel` | Yes | Left hip angular velocity |
+| `imu_Rvel` | Yes | Right hip angular velocity |
+| `M1_torque_command` | No | Right motor torque command |
+| `M2_torque_command` | No | Left motor torque command |
+| `raw_LExoTorque` | No | Raw left actuator torque |
+| `raw_RExoTorque` | No | Raw right actuator torque |
+| `tag` | No | Motion type label (e.g., "walk", "run") |
+
+Column names can vary across datasets. The app provides an interactive **Column Mapping** dialog that persists mappings in `.column_mapping.json`.
+
+For full data format details, see [docs/DATA_FORMAT.md](docs/DATA_FORMAT.md).
+
+## Quick Start
+
+### Install
 ```bash
+# Option A: pip
+pip install pyqt5 matplotlib pandas numpy scipy
+
+# Option B: conda
 conda env create -f environment.yaml
 ```
 
-Run
+### Run
 ```bash
-python data_analyzer.py
+python data_analyzer_main.py
 ```
 
-## 2. Project Structure
-1. `data_analyzer.py` — Main UI and Analyzer tab.
-2. `pages/gait_cycle_page.py` — Gait cycle tab.
-3. `pages/filter_delay_page.py` — Filter-Delay tab.
-4. `pages/report_page.py` — Report tab.
-5. `utils.py` — Shared utilities.
-6. `data/` — Sample CSV data.
-7. `output/` — Saved figures and reports (auto-created).
+### Basic Workflow
+1. Set data folder and click **Refresh List**
+2. Select a CSV file and click **Load**
+3. If columns don't match, use **Column Mapping** to map them
+4. Switch between tabs to analyze:
+   - **Analyzer** -- Interactive time-series plotting
+   - **Gait Cycle** -- Normalized gait cycle comparison
+   - **Filter-Delay** -- Raw torque filtering and delay alignment
+   - **Report** -- Batch summary metrics with CSV export
 
-## 3.Data Setup
-1. Place CSV files in a folder (default: `data/`).
-2. Use `Data Folder` to point at any directory of CSVs.
-3. Click `Refresh List`, select a file, then click `Load`.
-4. If column names do not match, click `Column Mapping` and map required columns.
-5. Mapping is stored in `.column_mapping.json` at project root.
+## Documentation
 
-## 4.Analyzer Tab (Main)
-Purpose: interactive plotting for raw time-series signals.
-Steps:
-1. Select a file and tag.
-2. Adjust Start/End or use Window + Pan to move a fixed time window.
-3. Select curves (Angle, Velocity, Torque Cmd, Raw Torque, Filtered Torque, P-term, D-term, Power).
-4. Use Velocity Scale to scale velocity for visualization.
-5. Optional: enable low-pass for Velocity/P/D/Power and set cutoff/FS.
-6. Click `Save PDF` to export figure to `./output/`.
-
-Notes:
-1. Power is computed as torque × velocity(rad/s).
-2. Positive power ratio is energy-based: sum(pos) / sum(abs).
-3. Global invert will invert all signals except power.
-
-## 5.Gait Cycle Tab
-Purpose: compute gait-cycle mean and band from angle peaks.
-Modes:
-1. Inter-motion compare(Compare tags within one file.)
-2. Inter-subject compare(Compare files for one tag.)
-
-Steps:
-1. Select file(s) and tag(s).
-2. Choose leg, samples, band type.
-3. Set min/max cycle duration and peak prominence.
-4. Click `Plot Gait Cycles`.
-5. Save figure with `Save PDF`.
-
-## 6. Filter-Delay Tab
-Purpose: streaming low-pass on raw torque, delay alignment, compare with command torque.
-Steps:
-1. Select file, tag, and leg.
-2. Set time window (default 10s) and pan.
-3. Set cutoff, order, and delay (ms).
-4. View filtered+delayed raw torque vs command torque.
-5. Power stats show positive/negative sums, energy ratio, manual delay, and filter delay.
-
-Report Tab
-Purpose: compute summary metrics for all CSV files and selected tags.
-Steps:
-1. Select tags (multi-select).
-2. Enter output name.
-3. Click `Generate + Save CSV`.
-4. Files saved to:
-   - `./output/<name>.csv`
-   - `./output/<name>_avg.csv`
-
-## 7.Report Metrics
-1. RMS torque.
-2. Torque range (min/max).
-3. Angle range (min/max).
-4. Peak angle.
-5. Velocity range (min/max).
-6. Peak velocity.
-7. Mean positive power.
-8. Mean negative power.
-9. Positive power ratio (energy ratio).
+| Document | Description |
+|----------|-------------|
+| [CHANGELOG](docs/CHANGELOG.md) | Version history and release notes |
+| [CONTRIBUTING](docs/CONTRIBUTING.md) | How to collaborate: branching, PRs, code style |
+| [PLOTTING_GUIDE](docs/PLOTTING_GUIDE.md) | Plotting conventions, colors, axes, units |
+| [DATA_FORMAT](docs/DATA_FORMAT.md) | Data format spec, column mapping, adding new data sources |

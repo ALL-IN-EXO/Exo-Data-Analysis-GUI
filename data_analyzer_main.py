@@ -26,12 +26,12 @@ except Exception:  # pragma: no cover - optional at runtime
     butter = None
     filtfilt = None
 
-from pages.gait_cycle_page import GaitCyclePage
-from pages.filter_delay_page import FilterDelayPage
-from pages.report_page import ReportPage
+from src.pages.gait_cycle_page import GaitCyclePage
+from src.pages.filter_delay_page import FilterDelayPage
+from src.pages.report_page import ReportPage
 
 
-DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "data_output", "sample_data")
 MAPPING_FILENAME = ".column_mapping.json"
 
 
@@ -1186,7 +1186,7 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
     # ---------------------- Save ----------------------
     def save_figure(self):
         name = self.save_name.text().strip() or "figure"
-        out_dir = os.path.join(os.path.dirname(__file__), "output")
+        out_dir = os.path.join(os.path.dirname(__file__), "data_output", "output")
         os.makedirs(out_dir, exist_ok=True)
         filename = os.path.join(out_dir, f"{name}.pdf")
         self.figure.savefig(filename, format="pdf", dpi=300, bbox_inches="tight")
