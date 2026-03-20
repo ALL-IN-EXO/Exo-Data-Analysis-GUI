@@ -1,0 +1,2 @@
+subject,tag,angle_range,velocity_range,torque_range,rms_torque,mean_positive_power,mean_negative_power,positive_power_ratio
+PI5_walkv2_pd-20260311-184227,start,"[-18.314,41.151]","[-283.081,288.879]","[-41.585,32.058]",18.35781585275901,34.479527930216406,-5.060398457421714,0.9531827522998475
