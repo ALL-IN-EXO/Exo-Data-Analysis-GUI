@@ -34,4 +34,4 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Sample Data**: 7 subject datasets included
 
 ### Known Issues
-- `make_time_axis()` is duplicated in 3 files (to be consolidated)
+- `make_time_axis()` is duplicated in multiple files (to be consolidated)
