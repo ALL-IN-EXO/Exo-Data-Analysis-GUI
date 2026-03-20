@@ -10,6 +10,7 @@ Interactive visualization of angles, velocities, torques, power, and gait cycles
 ```
 Exo-Data-Analysis-GUI/
 ├── data_analyzer_main.py   # Main entry point (run this)
+├── CLAUDE.md               # AI assistant guide (auto-loaded by Claude Code)
 ├── environment.yaml        # Conda environment specification
 │
 ├── src/                    # Source code modules
