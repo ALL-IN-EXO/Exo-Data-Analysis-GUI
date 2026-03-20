@@ -1,22 +1,12 @@
 # Scripts / 小工具脚本
 
-实用 shell 脚本和 Git 协作速查。
+## 脚本列表
+
+| 脚本 | 功能 | 用法 |
+|------|------|------|
+| `push_current.sh` | 提交并推送当前分支 | `./scripts/push_current.sh "commit信息"` |
+| `new_feature.sh` | 开新分支 → 提交 → 推送（一条龙） | `./scripts/new_feature.sh feature/xxx "commit信息"` |
 
 ## Git 协作扫盲（中文教程）
 
 详见 [GIT_GUIDE_CN.md](GIT_GUIDE_CN.md)
-
-## 脚本列表
-
-| 脚本 | 功能 |
-|------|------|
-| (后续添加) | |
-
-## 使用方法
-```bash
-# 给脚本加执行权限
-chmod +x scripts/<脚本名>.sh
-
-# 运行
-./scripts/<脚本名>.sh
-```
