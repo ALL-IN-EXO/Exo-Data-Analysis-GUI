@@ -16,7 +16,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 
 try:
-    from utils import lowpass_filter, StreamingButterworth
+    from src.utils import lowpass_filter, StreamingButterworth
 except Exception:  # pragma: no cover
     lowpass_filter = None
     StreamingButterworth = None

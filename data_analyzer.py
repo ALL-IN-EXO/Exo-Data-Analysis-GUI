@@ -26,9 +26,9 @@ except Exception:  # pragma: no cover - optional at runtime
     butter = None
     filtfilt = None
 
-from pages.gait_cycle_page import GaitCyclePage
-from pages.filter_delay_page import FilterDelayPage
-from pages.report_page import ReportPage
+from src.pages.gait_cycle_page import GaitCyclePage
+from src.pages.filter_delay_page import FilterDelayPage
+from src.pages.report_page import ReportPage
 
 
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
