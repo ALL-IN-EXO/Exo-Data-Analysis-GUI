@@ -32,7 +32,10 @@ data_analyzer_main.py      # Main window, Analyzer tab, entry point
 src/
   utils.py            # Shared utilities (filters, gait detection, I/O)
   pages/
-    <tab>_page.py     # One file per tab
+    explorer_page.py  # Generic CSV explorer (browse, plot, tag, transform)
+    gait_cycle_page.py
+    filter_delay_page.py
+    report_page.py
 ```
 
 ### Adding a New Tab
@@ -52,7 +55,7 @@ src/
 
 Before submitting a PR, verify:
 1. App launches without errors: `python data_analyzer_main.py`
-2. All 4 tabs load correctly
+2. All 5 tabs load correctly (Explorer, Analyzer, Gait Cycle, Filter-Delay, Report)
 3. Load at least one sample CSV and confirm plots render
 4. If you changed signal processing, test with multiple datasets
 

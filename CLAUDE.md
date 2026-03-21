@@ -13,7 +13,7 @@ Main entry point: `data_analyzer_main.py`
 ```
 data_analyzer_main.py    # Main entry, Analyzer tab UI — run this
 src/utils.py             # Shared signal processing (filters, gait detection, I/O)
-src/pages/               # One file per GUI tab (gait_cycle, filter_delay, report)
+src/pages/               # One file per GUI tab (explorer, gait_cycle, filter_delay, report)
 data_output/             # All data (sample_data/, debug_data/) and output (output/)
 docs/                    # All documentation (see below)
 scripts/                 # Utility scripts + Git guide

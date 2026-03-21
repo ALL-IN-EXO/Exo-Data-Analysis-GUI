@@ -26,6 +26,7 @@ except Exception:  # pragma: no cover - optional at runtime
     butter = None
     filtfilt = None
 
+from src.pages.explorer_page import ExplorerPage
 from src.pages.gait_cycle_page import GaitCyclePage
 from src.pages.filter_delay_page import FilterDelayPage
 from src.pages.report_page import ReportPage
@@ -144,7 +145,15 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Hip Exo Data Analyzer (v1.0)")
-        self.resize(1300, 820)
+        screen = QtWidgets.QApplication.primaryScreen()
+        if screen:
+            geom = screen.availableGeometry()
+            w = min(1200, int(geom.width() * 0.7))
+            h = min(750, int(geom.height() * 0.7))
+            self.resize(w, h)
+        else:
+            self.resize(1000, 700)
+        self.setMinimumSize(600, 400)
 
         self.data_bundle = None
         self.current_path = None
@@ -152,8 +161,11 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         self.raw_df = None
         self.column_map = {}
         self.all_columns = []
+        self._dark_mode = False
+        self._font_size = 13  # default: large
 
         self._build_ui()
+        self._build_menu()
         self._apply_theme()
         self._load_default_dataset()
 
@@ -165,6 +177,10 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         # Tabs
         self.tabs = QtWidgets.QTabWidget()
         splitter.addWidget(self.tabs)
+
+        # -------- Tab 0: Explorer --------
+        explorer_tab = ExplorerPage()
+        self.tabs.addTab(explorer_tab, "Explorer")
 
         # -------- Tab 1: Main Analyzer --------
         main_tab = QtWidgets.QWidget()
@@ -428,99 +444,190 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         self.plot_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.save_btn.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
 
+    # ---------------------- Menu ----------------------
+    def _build_menu(self):
+        menubar = self.menuBar()
+        view_menu = menubar.addMenu("View")
+
+        # Theme submenu
+        theme_menu = view_menu.addMenu("Theme")
+        self._light_action = theme_menu.addAction("Light")
+        self._dark_action = theme_menu.addAction("Dark")
+        self._light_action.setCheckable(True)
+        self._dark_action.setCheckable(True)
+        self._light_action.setChecked(True)
+        self._light_action.triggered.connect(lambda: self._set_theme(False))
+        self._dark_action.triggered.connect(lambda: self._set_theme(True))
+
+        # Font size submenu
+        font_menu = view_menu.addMenu("Font Size")
+        self._font_actions = {}
+        for label, size in [("Small", 8), ("Medium", 10), ("Large", 13), ("Extra Large", 16)]:
+            action = font_menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(size == 10)
+            action.triggered.connect(lambda checked, s=size: self._set_font_size(s))
+            self._font_actions[size] = action
+
+    def _set_theme(self, dark):
+        self._dark_mode = dark
+        self._light_action.setChecked(not dark)
+        self._dark_action.setChecked(dark)
+        self._apply_theme()
+
+    def _set_font_size(self, size):
+        self._font_size = size
+        for s, action in self._font_actions.items():
+            action.setChecked(s == size)
+        self._apply_theme()
+
     def _apply_theme(self):
-        self.setFont(QFont("Segoe UI", 10))
+        fs = self._font_size
+        dark = self._dark_mode
+        self.setFont(QFont("Helvetica", fs))
+
+        if dark:
+            bg = "#1E1E2E"
+            fg = "#CDD6F4"
+            surface = "#313244"
+            border = "#45475A"
+            accent = "#CBA6F7"
+            accent_bg = "#45475A"
+            highlight = "#89B4FA"
+            tab_bg = "#313244"
+            tab_sel = "#45475A"
+            slider_groove = "#45475A"
+            slider_handle = "#89B4FA"
+            section_bg = "#313244"
+            section_title_bg = "#45475A"
+            scroll_bg = "#313244"
+            scroll_handle = "#585B70"
+        else:
+            bg = "#F8F5FF"
+            fg = "#1C1B1F"
+            surface = "#FFFFFF"
+            border = "#E7E1F0"
+            accent = "#6750A4"
+            accent_bg = "#EEE7FF"
+            highlight = "#6750A4"
+            tab_bg = "#F2EDFF"
+            tab_sel = "#FFFFFF"
+            slider_groove = "#E7E1F0"
+            slider_handle = "#4E6E81"
+            section_bg = "#FFFFFF"
+            section_title_bg = "#EDE7F6"
+            scroll_bg = "#F2EDFF"
+            scroll_handle = "#D0C7E8"
+
         pal = QPalette()
-        pal.setColor(QPalette.Window, QColor("#F8F5FF"))
-        pal.setColor(QPalette.WindowText, QColor("#1C1B1F"))
-        pal.setColor(QPalette.Base, QColor("#FFFFFF"))
-        pal.setColor(QPalette.AlternateBase, QColor("#F2EDFF"))
-        pal.setColor(QPalette.Text, QColor("#1C1B1F"))
-        pal.setColor(QPalette.Button, QColor("#FFFFFF"))
-        pal.setColor(QPalette.ButtonText, QColor("#1C1B1F"))
-        pal.setColor(QPalette.Highlight, QColor("#6750A4"))
+        pal.setColor(QPalette.Window, QColor(bg))
+        pal.setColor(QPalette.WindowText, QColor(fg))
+        pal.setColor(QPalette.Base, QColor(surface))
+        pal.setColor(QPalette.AlternateBase, QColor(tab_bg))
+        pal.setColor(QPalette.Text, QColor(fg))
+        pal.setColor(QPalette.Button, QColor(surface))
+        pal.setColor(QPalette.ButtonText, QColor(fg))
+        pal.setColor(QPalette.Highlight, QColor(highlight))
         pal.setColor(QPalette.HighlightedText, QColor("#FFFFFF"))
         self.setPalette(pal)
-        self.setStyleSheet(
-            """
-            QWidget { color: #1C1B1F; }
-            QGroupBox {
-                background: #FFFFFF;
-                border: 1px solid #E7E1F0;
+
+        title_fs = fs + 2
+        self.setStyleSheet(f"""
+            QWidget {{ color: {fg}; }}
+            QGroupBox {{
+                background: {surface};
+                border: 1px solid {border};
                 border-radius: 16px;
                 margin-top: 12px;
-            }
-            QWidget#sectionPanel {
-                background: #FFFFFF;
-                border: 1px solid #E7E1F0;
+            }}
+            QWidget#sectionPanel {{
+                background: {section_bg};
+                border: 1px solid {border};
                 border-radius: 16px;
-            }
-            QLabel#sectionTitle {
-                color: #1F1B2E;
+            }}
+            QLabel#sectionTitle {{
+                color: {fg};
                 font-weight: 700;
-                font-size: 12pt;
-                background: #EDE7F6;
+                font-size: {title_fs}pt;
+                background: {section_title_bg};
                 border-radius: 6px;
                 padding: 2px 8px;
-            }
-            QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
-                background: #FFFFFF;
-                border: 1px solid #E7E1F0;
+            }}
+            QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
+                background: {surface};
+                color: {fg};
+                border: 1px solid {border};
                 border-radius: 12px;
                 padding: 8px 12px;
-            }
-            QPushButton {
-                background: #EEE7FF;
-                color: #1C1B1F;
-                border: 1px solid #D0C7E8;
+            }}
+            QPushButton {{
+                background: {accent_bg};
+                color: {fg};
+                border: 1px solid {border};
                 border-radius: 14px;
                 padding: 8px 14px;
-            }
-            QPushButton:pressed { background: #E0D7FA; }
-            QPushButton:hover { border: 1px solid #B5A8E0; }
-            QTabWidget::pane { border: none; }
-            QTabBar::tab {
-                background: #F2EDFF;
+            }}
+            QPushButton:pressed {{ background: {section_title_bg}; }}
+            QPushButton:hover {{ border: 1px solid {accent}; }}
+            QTabWidget::pane {{ border: none; }}
+            QTabBar::tab {{
+                background: {tab_bg};
+                color: {fg};
                 border-radius: 14px;
                 padding: 8px 16px;
                 margin-right: 6px;
-            }
-            QTabBar::tab:selected {
-                background: #FFFFFF;
-                border: 1px solid #D0C7E8;
-            }
-            QSlider::groove:horizontal {
+            }}
+            QTabBar::tab:selected {{
+                background: {tab_sel};
+                border: 1px solid {border};
+            }}
+            QSlider::groove:horizontal {{
                 height: 6px;
-                background: #E7E1F0;
+                background: {slider_groove};
                 border-radius: 3px;
-            }
-            QSlider::handle:horizontal {
+            }}
+            QSlider::handle:horizontal {{
                 width: 16px;
                 margin: -5px 0;
                 border-radius: 8px;
-                background: #4E6E81;
-                border: 1px solid #3E5C6B;
-            }
-            QScrollBar:vertical {
-                background: #F2EDFF;
+                background: {slider_handle};
+                border: 1px solid {border};
+            }}
+            QScrollBar:vertical {{
+                background: {scroll_bg};
                 width: 10px;
                 margin: 2px;
                 border-radius: 5px;
-            }
-            QScrollBar::handle:vertical {
-                background: #D0C7E8;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {scroll_handle};
                 min-height: 20px;
                 border-radius: 5px;
-            }
-            """
-        )
+            }}
+            QMenuBar {{
+                background: {surface};
+                color: {fg};
+                border-bottom: 1px solid {border};
+            }}
+            QMenuBar::item:selected {{
+                background: {accent_bg};
+            }}
+            QMenu {{
+                background: {surface};
+                color: {fg};
+                border: 1px solid {border};
+            }}
+            QMenu::item:selected {{
+                background: {accent_bg};
+            }}
+        """)
 
     # ---------------------- Data ----------------------
     def _refresh_dataset_list(self):
         self.dataset_combo.clear()
         if not os.path.isdir(self.data_dir):
             return
-        items = sorted([f for f in os.listdir(self.data_dir) if f.lower().endswith(".csv")])
+        items = sorted([f for f in os.listdir(self.data_dir) if f.lower().endswith(".csv") and not f.startswith("._")])
         self.dataset_combo.addItems(items)
         self.all_columns = self._collect_columns_from_dir()
 
@@ -564,7 +671,10 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         if not os.path.exists(path):
             self.statusBar().showMessage(f"File not found: {path}", 5000)
             return
-        df = pd.read_csv(path)
+        try:
+            df = pd.read_csv(path)
+        except UnicodeDecodeError:
+            df = pd.read_csv(path, encoding="latin-1")
         self.raw_df = df
         if not self.all_columns:
             self.all_columns = self._collect_columns_from_dir()

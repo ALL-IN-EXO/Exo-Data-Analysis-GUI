@@ -3,6 +3,38 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.1] - 2026-03-20
+
+### Added
+- **Explorer Tab**: Generic CSV viewer for initial data exploration
+  - Browse any CSV file, auto-detect time column and data types
+  - Overview strip with interactive SpanSelector (drag/resize to select range)
+  - Stacked detail subplots: one subplot per selected column, shared X-axis
+  - Column checkboxes with type display and NaN count indicator (orange highlight)
+  - Column search box: instant filter by name when columns are many
+  - Crosshair cursor: hover to see linked vertical line + exact values across all subplots
+  - Right-click context menu on columns/subplots:
+    - Reorder: Move Up / Move Down (change subplot order without unchecking)
+    - Transforms: Negate, Absolute Value, Offset, Scale, Derivative, Smooth
+    - Reset to Original (non-destructive, original data always preserved)
+  - Tagging system: view existing tags from any string column, write tags to any column (user-defined column name, no hardcoded "tag")
+  - Statistics panel: scrollable, 13px monospace, mean/std/min/max + NaN count per column
+  - Save as `_edited.csv` by default (never overwrites original)
+- **Theme & Font Controls** (View menu):
+  - Dark mode (Catppuccin Mocha palette) / Light mode toggle
+  - Font size: Small (8px), Medium (10px), Large (13px, default), Extra Large (16px)
+- **Screen Size Adaptation**: Window auto-sizes to 70% of screen (max 1200×750, min 600×400)
+
+### Fixed
+- CSV encoding crash: added latin-1 fallback for non-UTF-8 files (all tabs)
+- macOS `._` hidden files no longer appear in dataset list
+- Font "Segoe UI" → "Helvetica" for cross-platform compatibility
+
+### Changed
+- Project restructured: pages moved to `src/pages/`, utils to `src/utils.py`
+- Data paths consolidated under `data_output/`
+- Import paths updated across all modules
+
 ## [v1.0] - 2026-03-10
 
 ### Added

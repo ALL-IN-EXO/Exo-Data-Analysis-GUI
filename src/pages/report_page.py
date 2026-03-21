@@ -142,7 +142,10 @@ class ReportPage(QtWidgets.QWidget):
         tags = set()
         for fp in Path(data_dir).glob("*.csv"):
             try:
-                df = pd.read_csv(fp, usecols=["tag"])
+                try:
+                    df = pd.read_csv(fp, usecols=["tag"])
+                except UnicodeDecodeError:
+                    df = pd.read_csv(fp, usecols=["tag"], encoding="latin-1")
             except Exception:
                 continue
             if "tag" in df.columns:
@@ -238,7 +241,10 @@ class ReportPage(QtWidgets.QWidget):
         for fp in files:
             subject = fp.stem
             try:
-                df = pd.read_csv(fp)
+                try:
+                    df = pd.read_csv(fp)
+                except UnicodeDecodeError:
+                    df = pd.read_csv(fp, encoding="latin-1")
             except Exception:
                 continue
             if mapping:
