@@ -3,7 +3,7 @@
 A PyQt5 desktop application for analyzing hip exoskeleton biomechanical data.
 Interactive visualization of angles, velocities, torques, power, and gait cycles.
 
-**Current Version: v1.0** (Released 2026-03-10) | [Full Changelog](docs/CHANGELOG.md)
+**Current Version: v1.1** (2026-03-20) | [Full Changelog](docs/CHANGELOG.md)
 
 ## Project Structure
 
@@ -16,6 +16,7 @@ Exo-Data-Analysis-GUI/
 ├── src/                    # Source code modules
 │   ├── utils.py            # Signal processing utilities (filters, gait detection)
 │   └── pages/              # GUI tab modules
+│       ├── explorer_page.py       # Generic CSV explorer tab (v1.1)
 │       ├── gait_cycle_page.py     # Gait cycle analysis tab
 │       ├── filter_delay_page.py   # Filter-delay alignment tab
 │       └── report_page.py         # Batch reporting tab
@@ -76,10 +77,12 @@ python data_analyzer_main.py
 2. Select a CSV file and click **Load**
 3. If columns don't match, use **Column Mapping** to map them
 4. Switch between tabs to analyze:
+   - **Explorer** -- Generic CSV viewer: browse any CSV, select columns, explore with crosshair, tag data, apply transforms (v1.1)
    - **Analyzer** -- Interactive time-series plotting
    - **Gait Cycle** -- Normalized gait cycle comparison
    - **Filter-Delay** -- Raw torque filtering and delay alignment
    - **Report** -- Batch summary metrics with CSV export
+5. Use **View** menu to switch Dark/Light theme and font size
 
 ## Documentation
 

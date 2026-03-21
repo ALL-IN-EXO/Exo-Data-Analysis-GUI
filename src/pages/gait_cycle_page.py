@@ -299,7 +299,10 @@ class GaitCyclePage(QtWidgets.QWidget):
         if path in self.cache:
             return self.cache[path]
         try:
-            df = pd.read_csv(path)
+            try:
+                df = pd.read_csv(path)
+            except UnicodeDecodeError:
+                df = pd.read_csv(path, encoding="latin-1")
         except Exception:
             return None
         mapping = self._load_mapping()
