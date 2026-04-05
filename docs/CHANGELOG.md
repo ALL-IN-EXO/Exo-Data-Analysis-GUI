@@ -3,6 +3,62 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Gait Split Tab** (`src/pages/gait_split_page.py`): Detect, label, and analyze gait cycles from hip angle data
+
+  **Layout** mirrors ExplorerPage: fixed left sidebar + overview strip + detail canvas.
+
+  **Gait Cycle Detection**
+  - Browse any CSV; auto-detects time column and canonical angle column names (`imu_LTx` / `imu_RTx`)
+  - Yellow SpanSelector on overview strip — drag to select the time window for detection; detail canvas zooms to match
+  - Choose detection leg: Left, Right, or Both (independent detection per leg)
+  - Flexion-sign toggle: detect peaks (flexion = positive) or valleys (flexion = negative)
+  - Configurable parameters: min/max cycle duration (s), peak prominence (deg)
+  - Detection result: red onset dots on both overview and detail plots, alternating cycle shading
+  - Results panel: peak count, cycle count, mean/std/min/max duration per leg
+
+  **Export — Save CSV**
+  - `Add 'gait_cycle' col`: appends `gait_cycle_L` and/or `gait_cycle_R` (1-based integer, NaN outside cycles)
+    - Left leg selected → `gait_cycle_L`; Right → `gait_cycle_R`; Both → both columns, independently numbered
+  - `Trim to yellow span`: keep only rows within the yellow SpanSelector region on the overview strip
+  - Output filename: `<original>_gaitsplit.csv`
+
+  **Power Calculation** (left sidebar — Power Calculation section)
+  - Select velocity and torque columns independently for left and right leg
+  - Auto-selects canonical names: `imu_Lvel` / `M2_torque_command`, `imu_Rvel` / `M1_torque_command`
+  - Optional deg/s → rad/s conversion (π/180 scale), so output is in **Watts (Nm·rad/s)**
+  - Optional velocity low-pass filter before power computation (configurable cutoff, default 6 Hz)
+  - **Compute Power** button: adds `power_L` and/or `power_R` columns to the in-memory DataFrame (written on next Save CSV)
+
+  **Plot Gait Profiles** (action bar button — opens interactive QDialog)
+  - Layout adapts to detection results:
+    - One leg detected → 1 column in that leg's color
+    - Both legs detected → 2 columns (Left | Right) with independent cycle normalization
+  - 4 rows: Angle (deg) / Velocity (deg/s) / Torque (Nm) / Power (W), each normalised to 0–100 % gait cycle; solid line = mean, shaded band = ±1 SD
+  - Optional 5th row (torque components): enable via **"Torque Components (5th plot row)"** checkbox in sidebar
+    - Select up to 3 signals: Residual (P/NN), Priority (D/vel), Cmd torque
+    - Normalized by the detected leg's cycle boundaries (R preferred, L as fallback)
+  - Figure shown immediately in a resizable dialog with NavigationToolbar; save via "Save as PDF / PNG…" button
+
+  **Power Metrics** (action bar button)
+  - Popup dialog with per-leg power metrics computed by global integration over all detected cycles:
+    - ① Total work (J) and positive power ratio = W+ / (W+ + |W-|)
+    - ② Active-phase mean instantaneous power when positive / negative (W), with % of samples shown
+    - ③ Per-second average power delivery (W = J ÷ total time)
+    - ④ Per-cycle average work (J/cycle = J ÷ number of cycles)
+  - Note: ③ = ② × fraction-of-time (explained in dialog)
+  - Requires "Compute Power" to have been run first
+
+- **Explorer Tab — Single/Multiple view toggle** (`src/pages/explorer_page.py`)
+  - Two buttons added to the action bar between overview and detail canvas: **Single** and **Multiple**
+  - **Multiple** (default): each selected column in its own stacked subplot (original behavior)
+  - **Single**: all selected columns overlaid on one shared axis with a legend; useful for comparing signals on the same scale
+
+### Changed
+- Gait Split: torque component combo labels renamed to **Residual (P/NN)** / **Priority (D/vel)** / **Cmd torque** to reflect controller terminology more accurately
+
 ## [v1.1] - 2026-03-20
 
 ### Added

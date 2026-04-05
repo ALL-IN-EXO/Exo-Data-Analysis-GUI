@@ -27,6 +27,7 @@ except Exception:  # pragma: no cover - optional at runtime
     filtfilt = None
 
 from src.pages.explorer_page import ExplorerPage
+from src.pages.gait_split_page import GaitSplitPage
 from src.pages.gait_cycle_page import GaitCyclePage
 from src.pages.filter_delay_page import FilterDelayPage
 from src.pages.report_page import ReportPage
@@ -182,7 +183,14 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         explorer_tab = ExplorerPage()
         self.tabs.addTab(explorer_tab, "Explorer")
 
-        # -------- Tab 1: Main Analyzer --------
+        # -------- Tab 1: Gait Split --------
+        gait_split_tab = GaitSplitPage(
+            data_dir_provider=lambda: self.data_dir,
+            mapping_path_provider=self._mapping_config_path,
+        )
+        self.tabs.addTab(gait_split_tab, "Gait Split")
+
+        # -------- Tab 2: Main Analyzer --------
         main_tab = QtWidgets.QWidget()
         main_layout = QtWidgets.QHBoxLayout(main_tab)
         main_layout.setContentsMargins(0, 0, 0, 0)

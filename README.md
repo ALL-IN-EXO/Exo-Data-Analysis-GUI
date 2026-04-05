@@ -17,6 +17,7 @@ Exo-Data-Analysis-GUI/
 │   ├── utils.py            # Signal processing utilities (filters, gait detection)
 │   └── pages/              # GUI tab modules
 │       ├── explorer_page.py       # Generic CSV explorer tab (v1.1)
+│       ├── gait_split_page.py     # Gait cycle splitting, power calc, profile plots
 │       ├── gait_cycle_page.py     # Gait cycle analysis tab
 │       ├── filter_delay_page.py   # Filter-delay alignment tab
 │       └── report_page.py         # Batch reporting tab
@@ -51,6 +52,10 @@ Input: CSV files with biomechanical time-series data.
 | `raw_LExoTorque` | No | Raw left actuator torque |
 | `raw_RExoTorque` | No | Raw right actuator torque |
 | `tag` | No | Motion type label (e.g., "walk", "run") |
+| `gait_cycle_L` | Output | Left-leg gait cycle index (1-based int), added by Gait Split tab |
+| `gait_cycle_R` | Output | Right-leg gait cycle index (1-based int), added by Gait Split tab |
+| `power_L` | Output | Left instantaneous power (W = Nm·rad/s), added by Gait Split tab |
+| `power_R` | Output | Right instantaneous power (W = Nm·rad/s), added by Gait Split tab |
 
 Column names can vary across datasets. The app provides an interactive **Column Mapping** dialog that persists mappings in `.column_mapping.json`.
 
@@ -78,6 +83,7 @@ python data_analyzer_main.py
 3. If columns don't match, use **Column Mapping** to map them
 4. Switch between tabs to analyze:
    - **Explorer** -- Generic CSV viewer: browse any CSV, select columns, explore with crosshair, tag data, apply transforms (v1.1)
+   - **Gait Split** -- Detect gait cycle boundaries from hip angle, compute power, export labeled CSV, plot gait profiles, view power metrics
    - **Analyzer** -- Interactive time-series plotting
    - **Gait Cycle** -- Normalized gait cycle comparison
    - **Filter-Delay** -- Raw torque filtering and delay alignment
