@@ -5,6 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Explorer quick file switching** (`src/pages/explorer_page.py`)
+  - Added a folder-level CSV list in Explorer for one-click switching between files in the same directory
+  - Added folder refresh control and folder path display inside Explorer
+- **Global file -> Explorer sync** (`data_analyzer_main.py`, `src/pages/explorer_page.py`)
+  - Loading a file from the main Data panel now auto-loads the same file into Explorer
+  - Main dataset selection now updates Explorer's folder list selection
+
+### Changed
+- **Analyzer/Filter-Delay/Gait Cycle control panel layout** (`data_analyzer_main.py`, `src/pages/filter_delay_page.py`, `src/pages/gait_cycle_page.py`)
+  - Left controls now use a scroll container with a fixed minimum width to reduce control crowding on smaller Linux screens
+- **Analyzer slider responsiveness** (`data_analyzer_main.py`)
+  - Added debounced plot updates for time sliders/pan and related controls for smoother interaction during drag
+- **Plot readability and legend placement** (`data_analyzer_main.py`, `src/pages/filter_delay_page.py`, `src/pages/gait_cycle_page.py`)
+  - Improved line color contrast and line-style hierarchy (raw vs filtered vs command/terms)
+  - Moved dense legends outward with reserved right margin to avoid clipping
+
+### Fixed
+- **Gait Cycle compare-mode state leakage** (`src/pages/gait_cycle_page.py`)
+  - Mode switch now hides irrelevant controls and clears stale checklist selections from the previous mode
+- **Missing feedback for failed multi-file tag compare** (`src/pages/gait_cycle_page.py`)
+  - Added pre-checks for tag existence per file and explicit in-UI error messages instead of blank plots
+
 ## [v1.2] - 2026-04-07
 
 ### Added

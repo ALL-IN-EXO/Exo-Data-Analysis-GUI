@@ -71,11 +71,13 @@ class GaitCyclePage(QtWidgets.QWidget):
 
     def _build_ui(self):
         layout = QtWidgets.QHBoxLayout(self)
+        layout.setSpacing(8)
 
         controls = QtWidgets.QWidget()
+        controls.setMinimumWidth(360)
         controls_layout = QtWidgets.QVBoxLayout(controls)
         controls_layout.setContentsMargins(8, 8, 8, 8)
-        controls_layout.setSpacing(8)
+        controls_layout.setSpacing(10)
 
         mode_group = QtWidgets.QWidget()
         mode_group.setObjectName("sectionPanel")
@@ -107,9 +109,11 @@ class GaitCyclePage(QtWidgets.QWidget):
         self.file_combo = QtWidgets.QComboBox()
         self.file_list = QtWidgets.QListWidget()
         self.file_list.setMaximumHeight(120)
-        file_layout.addWidget(QtWidgets.QLabel("Single file (tag compare):"))
+        self.single_file_label = QtWidgets.QLabel("Single file (tag compare):")
+        self.multi_file_label = QtWidgets.QLabel("Multi file (tag fixed):")
+        file_layout.addWidget(self.single_file_label)
         file_layout.addWidget(self.file_combo)
-        file_layout.addWidget(QtWidgets.QLabel("Multi file (tag fixed):"))
+        file_layout.addWidget(self.multi_file_label)
         file_layout.addWidget(self.file_list)
 
         tag_group = QtWidgets.QWidget()
@@ -125,9 +129,11 @@ class GaitCyclePage(QtWidgets.QWidget):
         self.tag_list = QtWidgets.QListWidget()
         self.tag_list.setMaximumHeight(140)
         self.tag_combo = QtWidgets.QComboBox()
-        tag_layout.addWidget(QtWidgets.QLabel("Multi tag (one file):"))
+        self.multi_tag_label = QtWidgets.QLabel("Multi tag (one file):")
+        self.single_tag_label = QtWidgets.QLabel("Single tag (multi file):")
+        tag_layout.addWidget(self.multi_tag_label)
         tag_layout.addWidget(self.tag_list)
-        tag_layout.addWidget(QtWidgets.QLabel("Single tag (multi file):"))
+        tag_layout.addWidget(self.single_tag_label)
         tag_layout.addWidget(self.tag_combo)
 
         option_group = QtWidgets.QWidget()
@@ -194,6 +200,9 @@ class GaitCyclePage(QtWidgets.QWidget):
         self.plot_btn = QtWidgets.QPushButton("Plot Gait Cycles")
         self.save_name = QtWidgets.QLineEdit("gait_cycle")
         self.save_btn = QtWidgets.QPushButton("Save PDF")
+        self.status_label = QtWidgets.QLabel("")
+        self.status_label.setWordWrap(True)
+        self.status_label.setStyleSheet("font-size: 11px; color: #666;")
 
         controls_layout.addWidget(mode_group)
         controls_layout.addWidget(file_group)
@@ -202,6 +211,7 @@ class GaitCyclePage(QtWidgets.QWidget):
         controls_layout.addWidget(self.plot_btn)
         controls_layout.addWidget(self.save_name)
         controls_layout.addWidget(self.save_btn)
+        controls_layout.addWidget(self.status_label)
         controls_layout.addStretch(1)
 
         plot_widget = QtWidgets.QWidget()
@@ -212,13 +222,20 @@ class GaitCyclePage(QtWidgets.QWidget):
         plot_layout.addWidget(self.toolbar)
         plot_layout.addWidget(self.canvas, 1)
 
-        layout.addWidget(controls)
+        controls_scroll = QtWidgets.QScrollArea()
+        controls_scroll.setWidgetResizable(True)
+        controls_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        controls_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        controls_scroll.setWidget(controls)
+
+        layout.addWidget(controls_scroll)
         layout.addWidget(plot_widget, 1)
 
         self.mode_tags.toggled.connect(self._sync_modes)
         self.mode_files.toggled.connect(self._sync_modes)
         self.file_combo.currentTextChanged.connect(self._on_file_change)
         self.plot_btn.clicked.connect(self.plot)
+        self._sync_modes()
 
     def refresh_data(self):
         self.cache = {}
@@ -235,6 +252,54 @@ class GaitCyclePage(QtWidgets.QWidget):
             self.mode_tags.setChecked(False)
         if not self.mode_tags.isChecked() and not self.mode_files.isChecked():
             self.mode_tags.setChecked(True)
+        self._apply_mode_visibility()
+
+    def _apply_mode_visibility(self):
+        tags_mode = self.mode_tags.isChecked()
+
+        self.single_file_label.setVisible(tags_mode)
+        self.file_combo.setVisible(tags_mode)
+        self.multi_tag_label.setVisible(tags_mode)
+        self.tag_list.setVisible(tags_mode)
+
+        self.multi_file_label.setVisible(not tags_mode)
+        self.file_list.setVisible(not tags_mode)
+        self.single_tag_label.setVisible(not tags_mode)
+        self.tag_combo.setVisible(not tags_mode)
+
+        if tags_mode:
+            self._clear_checked_items(self.file_list)
+        else:
+            self._clear_checked_items(self.tag_list)
+        self._set_status("")
+
+    def _clear_checked_items(self, list_widget):
+        for i in range(list_widget.count()):
+            item = list_widget.item(i)
+            item.setCheckState(Qt.Unchecked)
+
+    def _set_status(self, message, is_error=False):
+        if not message:
+            self.status_label.setText("")
+            self.status_label.setStyleSheet("font-size: 11px; color: #666;")
+            return
+        color = "#b00020" if is_error else "#7a5600"
+        self.status_label.setStyleSheet(f"font-size: 11px; color: {color};")
+        self.status_label.setText(message)
+
+    def _show_plot_message(self, message, is_error=False):
+        self.figure.clear()
+        ax = self.figure.add_subplot(111)
+        ax.text(
+            0.5, 0.5, message,
+            ha="center", va="center",
+            fontsize=12,
+            color="#b00020" if is_error else "#666666",
+            transform=ax.transAxes,
+        )
+        ax.set_axis_off()
+        self.canvas.draw()
+        self._set_status(message, is_error=is_error)
 
     def _refresh_files(self):
         self.file_combo.clear()
@@ -252,6 +317,7 @@ class GaitCyclePage(QtWidgets.QWidget):
         if files:
             self.file_combo.setCurrentIndex(0)
             self._on_file_change(files[0])
+        self._apply_mode_visibility()
 
     def _on_file_change(self, name):
         if not name:
@@ -383,6 +449,7 @@ class GaitCyclePage(QtWidgets.QWidget):
         )
 
     def plot(self):
+        self._set_status("")
         self.figure.clear()
         ax1 = self.figure.add_subplot(411)
         ax2 = self.figure.add_subplot(412, sharex=ax1)
@@ -395,66 +462,105 @@ class GaitCyclePage(QtWidgets.QWidget):
         show_band = self.show_band.isChecked()
 
         series = []
+        notes = []
 
         if self.mode_tags.isChecked():
             file_name = self.file_combo.currentText().strip()
             if not file_name:
-                self.canvas.draw()
+                self._show_plot_message("No file selected. Choose one file for tag comparison.", is_error=True)
                 return
             tags = self._get_selected_tags()
             if not tags:
-                self.canvas.draw()
+                self._show_plot_message("No tags selected. Check at least one tag to plot.", is_error=True)
                 return
             df = self._load_df(os.path.join(data_dir, file_name))
+            if df is None:
+                self._show_plot_message(f"Failed to read file: {file_name}", is_error=True)
+                return
+            skipped = []
             for tag in tags:
                 prof = self._compute_profile(df, tag, leg, n)
                 if prof:
                     series.append((f"{file_name}:{tag}", prof))
+                else:
+                    skipped.append(tag)
+            if skipped:
+                notes.append("Skipped tags (insufficient cycles): " + ", ".join(skipped[:6]))
         else:
             files = self._get_selected_files()
             tag = self.tag_combo.currentText().strip()
-            if not files or not tag:
-                self.canvas.draw()
+            if not files:
+                self._show_plot_message("No files selected. Check one or more files to compare.", is_error=True)
                 return
+            if not tag:
+                self._show_plot_message("No tag selected for multi-file comparison.", is_error=True)
+                return
+            missing_tag = []
+            insufficient = []
+            unreadable = []
             for f in files:
                 df = self._load_df(os.path.join(data_dir, f))
+                if df is None:
+                    unreadable.append(f)
+                    continue
+                if "tag" not in df.columns:
+                    missing_tag.append(f)
+                    continue
+                tag_values = set(pd.Series(df["tag"]).dropna().astype(str).tolist())
+                if str(tag) not in tag_values:
+                    missing_tag.append(f)
+                    continue
                 prof = self._compute_profile(df, tag, leg, n)
                 if prof:
                     series.append((f"{f}:{tag}", prof))
+                else:
+                    insufficient.append(f)
+            if unreadable:
+                notes.append("Unreadable files: " + ", ".join(unreadable[:6]))
+            if missing_tag:
+                notes.append(f"Tag '{tag}' missing in files: " + ", ".join(missing_tag[:6]))
+            if insufficient:
+                notes.append("Files without valid gait cycles: " + ", ".join(insufficient[:6]))
 
         if not series:
-            self.canvas.draw()
+            message = "No valid data to plot."
+            if notes:
+                message += "\n" + "\n".join(notes)
+            self._show_plot_message(message, is_error=True)
             return
 
         x = np.linspace(0, 100, n, endpoint=False)
-        for label, prof in series:
+        for i, (label, prof) in enumerate(series):
+            color = f"C{i % 10}"
             ang_m, ang_min, ang_max = prof.angle
             vel_m, vel_min, vel_max = prof.vel
             tor_m, tor_min, tor_max = prof.torque
             pow_m, pow_min, pow_max = prof.power
-            ax1.plot(x, ang_m, label=label)
-            ax2.plot(x, vel_m, label=label)
-            ax3.plot(x, tor_m, label=label)
-            ax4.plot(x, pow_m, label=label)
+            ax1.plot(x, ang_m, label=label, color=color, linewidth=1.8)
+            ax2.plot(x, vel_m, label=label, color=color, linewidth=1.8)
+            ax3.plot(x, tor_m, label=label, color=color, linewidth=1.8)
+            ax4.plot(x, pow_m, label=label, color=color, linewidth=1.8)
             if show_band:
-                ax1.fill_between(x, ang_min, ang_max, alpha=0.15)
-                ax2.fill_between(x, vel_min, vel_max, alpha=0.15)
-                ax3.fill_between(x, tor_min, tor_max, alpha=0.15)
-                ax4.fill_between(x, pow_min, pow_max, alpha=0.15)
+                ax1.fill_between(x, ang_min, ang_max, alpha=0.12, color=color)
+                ax2.fill_between(x, vel_min, vel_max, alpha=0.12, color=color)
+                ax3.fill_between(x, tor_min, tor_max, alpha=0.12, color=color)
+                ax4.fill_between(x, pow_min, pow_max, alpha=0.12, color=color)
 
         ax1.set_ylabel("Angle (deg)")
         ax2.set_ylabel("Velocity")
         ax3.set_ylabel("Torque (Nm)")
         ax4.set_ylabel("Power (W)")
         ax4.set_xlabel("Gait Cycle (%)")
-        ax1.grid(True)
-        ax2.grid(True)
-        ax3.grid(True)
-        ax4.grid(True)
-        ax1.legend(loc="upper right")
+        ax1.grid(True, alpha=0.35)
+        ax2.grid(True, alpha=0.35)
+        ax3.grid(True, alpha=0.35)
+        ax4.grid(True, alpha=0.35)
+        ax1.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0, fontsize=8)
 
-        self.figure.tight_layout()
+        self.figure.tight_layout(rect=[0, 0, 0.84, 1.0])
         self.canvas.draw()
+        if notes:
+            self._set_status("\n".join(notes), is_error=True)
 
     def save_pdf(self):
         name = self.save_name.text().strip() or "gait_cycle"

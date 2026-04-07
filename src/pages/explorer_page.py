@@ -58,11 +58,15 @@ _TAG_COLORS = [
 # --------------- main widget ---------------
 
 class ExplorerPage(QtWidgets.QWidget):
-    def __init__(self, data_dir_provider=None, mapping_path_provider=None):
+    def __init__(self, data_dir_provider=None, mapping_path_provider=None, show_browse=True):
         super().__init__()
+        self.data_dir_provider = data_dir_provider
+        self.mapping_path_provider = mapping_path_provider
+        self._show_browse = bool(show_browse)
         self.df = None
         self.df_original = None  # pristine copy for non-destructive edits
         self.csv_path = None
+        self._folder_path = None
         self.time_col = None
         self.t = None
         self.numeric_cols = []
@@ -81,6 +85,7 @@ class ExplorerPage(QtWidgets.QWidget):
         self._debounce.timeout.connect(self._do_update)
         self._view_mode = "multiple"   # "single" | "multiple"
         self._build_ui()
+        self.refresh_data()
 
     # ============================================================
     # UI
@@ -91,16 +96,34 @@ class ExplorerPage(QtWidgets.QWidget):
 
         # ---------- left panel ----------
         left = QtWidgets.QWidget()
-        left.setMinimumWidth(200)
-        left.setMaximumWidth(320)
+        left.setMinimumWidth(240)
+        left.setMaximumWidth(360)
         left.setObjectName("sectionPanel")
         lv = QtWidgets.QVBoxLayout(left)
-        lv.setContentsMargins(6, 6, 6, 6)
+        lv.setContentsMargins(8, 8, 8, 8)
+        lv.setSpacing(6)
 
         # browse
-        browse_btn = QtWidgets.QPushButton("  Browse CSV...")
-        browse_btn.clicked.connect(self._browse_file)
-        lv.addWidget(browse_btn)
+        self.browse_btn = QtWidgets.QPushButton("  Browse CSV...")
+        self.browse_btn.clicked.connect(self._browse_file)
+        self.browse_btn.setVisible(self._show_browse)
+        lv.addWidget(self.browse_btn)
+
+        # folder file list (quick switch)
+        folder_title = QtWidgets.QLabel("Folder CSVs")
+        folder_title.setObjectName("sectionTitle")
+        lv.addWidget(folder_title)
+        self.folder_path_label = QtWidgets.QLabel("No folder selected")
+        self.folder_path_label.setWordWrap(True)
+        self.folder_path_label.setStyleSheet("font-size: 10px; color: #777;")
+        lv.addWidget(self.folder_path_label)
+        self.folder_list = QtWidgets.QListWidget()
+        self.folder_list.setMaximumHeight(140)
+        self.folder_list.itemSelectionChanged.connect(self._on_folder_file_selected)
+        lv.addWidget(self.folder_list)
+        self.folder_refresh_btn = QtWidgets.QPushButton("Refresh Folder List")
+        self.folder_refresh_btn.clicked.connect(self._refresh_folder_files_from_context)
+        lv.addWidget(self.folder_refresh_btn)
 
         self.file_label = QtWidgets.QLabel("No file loaded")
         self.file_label.setWordWrap(True)
@@ -253,9 +276,11 @@ class ExplorerPage(QtWidgets.QWidget):
             return
         if os.path.basename(path).startswith("._"):
             return
-        self._load_csv(path)
+        self.load_csv(path)
 
-    def _load_csv(self, path):
+    def _load_csv(self, path, sync_folder=True):
+        if sync_folder:
+            self._refresh_folder_files(os.path.dirname(path), selected_file=os.path.basename(path))
         try:
             try:
                 df = pd.read_csv(path)
@@ -276,6 +301,60 @@ class ExplorerPage(QtWidgets.QWidget):
         self._update_detail()
         self._update_stats()
         self.tag_status.setText("")
+
+    def load_csv(self, path, sync_folder=True):
+        if not path or not os.path.exists(path):
+            return
+        self._load_csv(path, sync_folder=sync_folder)
+
+    def set_folder(self, folder_path, selected_file=None):
+        self._refresh_folder_files(folder_path, selected_file=selected_file)
+
+    def _refresh_folder_files_from_context(self):
+        if self.csv_path and os.path.isfile(self.csv_path):
+            folder = os.path.dirname(self.csv_path)
+            selected = os.path.basename(self.csv_path)
+        elif callable(self.data_dir_provider):
+            folder = self.data_dir_provider()
+            selected = None
+        else:
+            folder = self._folder_path
+            selected = None
+        self._refresh_folder_files(folder, selected_file=selected)
+
+    def _refresh_folder_files(self, folder_path, selected_file=None):
+        self.folder_list.blockSignals(True)
+        self.folder_list.clear()
+
+        if not folder_path or not os.path.isdir(folder_path):
+            self._folder_path = None
+            self.folder_path_label.setText("No folder selected")
+            self.folder_list.blockSignals(False)
+            return
+
+        self._folder_path = folder_path
+        self.folder_path_label.setText(folder_path)
+        files = sorted(
+            [f for f in os.listdir(folder_path) if f.lower().endswith(".csv") and not f.startswith("._")]
+        )
+        self.folder_list.addItems(files)
+        if files:
+            target = selected_file if selected_file in files else files[0]
+            matches = self.folder_list.findItems(target, Qt.MatchExactly)
+            if matches:
+                self.folder_list.setCurrentItem(matches[0])
+        self.folder_list.blockSignals(False)
+
+    def _on_folder_file_selected(self):
+        if self.folder_list.signalsBlocked() or not self._folder_path:
+            return
+        item = self.folder_list.currentItem()
+        if item is None:
+            return
+        path = os.path.join(self._folder_path, item.text())
+        if self.csv_path and os.path.abspath(path) == os.path.abspath(self.csv_path):
+            return
+        self.load_csv(path, sync_folder=False)
 
     # ============================================================
     # Column detection
@@ -1104,4 +1183,5 @@ class ExplorerPage(QtWidgets.QWidget):
     # Compat
     # ============================================================
     def refresh_data(self):
-        pass
+        if callable(self.data_dir_provider):
+            self.set_folder(self.data_dir_provider(), selected_file=None)
