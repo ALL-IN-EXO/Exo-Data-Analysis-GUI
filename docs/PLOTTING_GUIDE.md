@@ -7,15 +7,16 @@ The application uses a consistent color palette across all tabs:
 | Signal | Color | Hex |
 |--------|-------|-----|
 | Left Angle | Blue | `#1f77b4` |
-| Right Angle | Orange | `#ff7f0e` |
+| Right Angle | Orange | `#e66100` |
 | Left Velocity | Green | `#2ca02c` |
 | Right Velocity | Red | `#d62728` |
-| Torque Command | Purple | `#9467bd` |
-| Raw Torque | Brown | `#8c564b` |
-| Filtered Torque | Pink | `#e377c2` |
-| P-term | Gray | `#7f7f7f` |
-| D-term | Olive | `#bcbd22` |
-| Power | Cyan | `#17becf` |
+| Left Torque Command | Deep Blue | `#084594` |
+| Right Torque Command | Deep Red | `#7f0000` |
+| Left Raw / Filtered Torque | Light/Deep Blue | `#6baed6` / `#08519c` |
+| Right Raw / Filtered Torque | Light/Deep Red | `#fb6a4a` / `#cb181d` |
+| Left P/D terms | Green family | `#31a354` / `#74c476` |
+| Right P/D terms | Orange family | `#f16913` / `#fdae6b` |
+| Power fill (positive/negative) | Green / Red | `#66bb6a` / `#ef5350` |
 
 When adding new signals, pick colors that are visually distinct from existing ones. Avoid using the same color for signals that may appear on the same plot.
 
@@ -41,7 +42,7 @@ When adding new signals, pick colors that are visually distinct from existing on
 ### Grid and Layout
 - Grid lines: dashed style, alpha=0.4
 - Figure DPI: 300 for export, screen default for interactive
-- Legend: placed to avoid overlapping data; use `loc='best'` or manual positioning
+- Legend: place outside plotting area when many curves are shown (e.g., `bbox_to_anchor=(1.01, 1.0)` with a reserved right margin)
 
 ### Gait Cycle Plots
 - X-axis always normalized to 0-100%
@@ -52,6 +53,7 @@ When adding new signals, pick colors that are visually distinct from existing on
 ### Filter-Delay Plots
 - Raw signal: lighter/thinner line
 - Filtered signal: darker/thicker line
+- Command signal: dashed, high-contrast color against filtered signal
 - Positive power: shaded green region
 - Negative power: shaded red region
 

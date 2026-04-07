@@ -64,11 +64,13 @@ class FilterDelayPage(QtWidgets.QWidget):
 
     def _build_ui(self):
         layout = QtWidgets.QHBoxLayout(self)
+        layout.setSpacing(8)
 
         controls = QtWidgets.QWidget()
+        controls.setMinimumWidth(360)
         controls_layout = QtWidgets.QVBoxLayout(controls)
         controls_layout.setContentsMargins(8, 8, 8, 8)
-        controls_layout.setSpacing(8)
+        controls_layout.setSpacing(10)
 
         file_group = QtWidgets.QWidget()
         file_group.setObjectName("sectionPanel")
@@ -176,7 +178,13 @@ class FilterDelayPage(QtWidgets.QWidget):
         plot_layout.addWidget(self.toolbar)
         plot_layout.addWidget(self.canvas, 1)
 
-        layout.addWidget(controls)
+        controls_scroll = QtWidgets.QScrollArea()
+        controls_scroll.setWidgetResizable(True)
+        controls_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        controls_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        controls_scroll.setWidget(controls)
+
+        layout.addWidget(controls_scroll)
         layout.addWidget(plot_widget, 1)
 
         self.refresh_btn.clicked.connect(self._refresh_files)
@@ -416,17 +424,17 @@ class FilterDelayPage(QtWidgets.QWidget):
             t_shift = t + delay
             raw_f = np.interp(t, t_shift, raw_f, left=np.nan, right=np.nan)
 
-        ax1.plot(t, raw, label="Raw Torque", color="#999999", alpha=0.6)
-        ax1.plot(t, raw_f, label="Filtered+Delayed Raw", color="#1f77b4")
-        ax1.plot(t, cmd, label="Command Torque", color="#d62728")
+        ax1.plot(t, raw, label="Raw Torque", color="#9aa0a6", linewidth=1.2, alpha=0.8, linestyle=":")
+        ax1.plot(t, raw_f, label="Filtered+Delayed Raw", color="#08519c", linewidth=2.0)
+        ax1.plot(t, cmd, label="Command Torque", color="#b30000", linewidth=1.7, linestyle="--")
         ax1.set_ylabel("Torque (Nm)")
-        ax1.grid(True)
-        ax1.legend(loc="upper right")
+        ax1.grid(True, alpha=0.35)
+        ax1.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0, fontsize=8)
 
-        ax2.plot(t, raw_f - cmd, label="Raw(cmd aligned) - Command", color="#2ca02c")
+        ax2.plot(t, raw_f - cmd, label="Raw(cmd aligned) - Command", color="#2b8cbe", linewidth=1.7)
         ax2.axhline(0, color="#666666", lw=1)
         ax2.set_ylabel("Diff (Nm)")
-        ax2.grid(True)
+        ax2.grid(True, alpha=0.35)
 
         vel_rad = np.deg2rad(vel)
         power = raw_f * vel_rad
@@ -438,13 +446,13 @@ class FilterDelayPage(QtWidgets.QWidget):
         denom = float(np.sum(np.abs(power_valid))) if len(power_valid) else 0.0
         ratio = (pos_sum / denom) if denom > 0 else 0.0
 
-        ax3.plot(t, power, label="Power (Command)", color="#9467bd")
-        ax3.fill_between(t, 0, power, where=(power >= 0), color="#2ca02c", alpha=0.30)
-        ax3.fill_between(t, 0, power, where=(power < 0), color="#d62728", alpha=0.30)
+        ax3.plot(t, power, label="Power (Command)", color="#6a3d9a", linewidth=1.8)
+        ax3.fill_between(t, 0, power, where=(power >= 0), color="#66bb6a", alpha=0.24)
+        ax3.fill_between(t, 0, power, where=(power < 0), color="#ef5350", alpha=0.22)
         ax3.axhline(0, color="#666666", lw=1)
         ax3.set_ylabel("Power (W, vel in rad/s)")
         ax3.set_xlabel("Time (s)")
-        ax3.grid(True)
+        ax3.grid(True, alpha=0.35)
 
         delay_ms = float(self.delay_spin.value())
         fd_text = "N/A" if filter_delay_ms is None else f"{filter_delay_ms:.1f} ms"
@@ -457,5 +465,5 @@ class FilterDelayPage(QtWidgets.QWidget):
             "Filter delay: {}\n".format(pos_sum, neg_sum, ratio, delay_ms, fd_text)
         )
 
-        self.figure.tight_layout()
+        self.figure.tight_layout(rect=[0, 0, 0.84, 1.0])
         self.canvas.draw()

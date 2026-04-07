@@ -164,6 +164,10 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         self.all_columns = []
         self._dark_mode = False
         self._font_size = 13  # default: large
+        self._plot_debounce = QtCore.QTimer(self)
+        self._plot_debounce.setSingleShot(True)
+        self._plot_debounce.setInterval(60)
+        self._plot_debounce.timeout.connect(self.update_plot)
 
         self._build_ui()
         self._build_menu()
@@ -180,8 +184,12 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         splitter.addWidget(self.tabs)
 
         # -------- Tab 0: Explorer --------
-        explorer_tab = ExplorerPage()
-        self.tabs.addTab(explorer_tab, "Explorer")
+        self.explorer_tab = ExplorerPage(
+            data_dir_provider=lambda: self.data_dir,
+            mapping_path_provider=self._mapping_config_path,
+            show_browse=False,
+        )
+        self.tabs.addTab(self.explorer_tab, "Explorer")
 
         # -------- Tab 1: Gait Split --------
         gait_split_tab = GaitSplitPage(
@@ -196,6 +204,7 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         controls = QtWidgets.QWidget()
+        controls.setMinimumWidth(360)
         controls_layout = QtWidgets.QVBoxLayout(controls)
         controls_layout.setContentsMargins(8, 8, 8, 8)
         controls_layout.setSpacing(8)
@@ -392,7 +401,13 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         plot_layout.addWidget(self.toolbar)
         plot_layout.addWidget(self.canvas, 1)
 
-        main_layout.addWidget(controls)
+        controls_scroll = QtWidgets.QScrollArea()
+        controls_scroll.setWidgetResizable(True)
+        controls_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        controls_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        controls_scroll.setWidget(controls)
+
+        main_layout.addWidget(controls_scroll)
         main_layout.addWidget(plot_widget, 1)
         self.tabs.addTab(main_tab, "Analyzer")
 
@@ -421,6 +436,7 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
 
         # Signals
         self.refresh_button.clicked.connect(self._refresh_dataset_list)
+        self.dataset_combo.currentTextChanged.connect(self._on_dataset_selection_changed)
         self.load_button.clicked.connect(self._load_selected_dataset)
         self.folder_browse.clicked.connect(self._browse_folder)
         self.folder_apply.clicked.connect(self._apply_folder)
@@ -436,9 +452,9 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         self.pan_slider.valueChanged.connect(self._pan_changed)
         self.tag_combo.currentTextChanged.connect(self._on_tag_changed)
         self.scale_spin.valueChanged.connect(self._recompute_velocity)
-        self.global_lowpass.toggled.connect(self.update_plot)
-        self.lowpass_cutoff.valueChanged.connect(self.update_plot)
-        self.fs_spin.valueChanged.connect(self.update_plot)
+        self.global_lowpass.toggled.connect(self._queue_plot_update)
+        self.lowpass_cutoff.valueChanged.connect(self._queue_plot_update)
+        self.fs_spin.valueChanged.connect(self._queue_plot_update)
         self.invert_check.toggled.connect(self._on_invert_toggled)
 
         self._refresh_dataset_list()
@@ -637,6 +653,9 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
             return
         items = sorted([f for f in os.listdir(self.data_dir) if f.lower().endswith(".csv") and not f.startswith("._")])
         self.dataset_combo.addItems(items)
+        if hasattr(self, "explorer_tab"):
+            selected = self.dataset_combo.currentText().strip() if self.dataset_combo.count() else None
+            self.explorer_tab.set_folder(self.data_dir, selected_file=selected)
         self.all_columns = self._collect_columns_from_dir()
 
     def _load_default_dataset(self):
@@ -653,6 +672,11 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         path = os.path.join(self.data_dir, name)
         self.load_csv(path)
 
+    def _on_dataset_selection_changed(self, name):
+        if hasattr(self, "explorer_tab"):
+            selected = name.strip() if isinstance(name, str) and name.strip() else None
+            self.explorer_tab.set_folder(self.data_dir, selected_file=selected)
+
     def _browse_folder(self):
         path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Data Folder", self.data_dir)
         if path:
@@ -668,6 +692,8 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
             return
         self.data_dir = path
         self._refresh_dataset_list()
+        if hasattr(self, "explorer_tab"):
+            self.explorer_tab.set_folder(self.data_dir, selected_file=None)
         # Notify subpages to reload data from new folder
         for i in range(self.tabs.count()):
             w = self.tabs.widget(i)
@@ -737,6 +763,8 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         self._populate_curve_checks()
         self._set_full_range()
         self.update_plot()
+        if hasattr(self, "explorer_tab"):
+            self.explorer_tab.load_csv(path, sync_folder=True)
 
     def _populate_tag_combo(self):
         self.tag_combo.clear()
@@ -769,14 +797,14 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
             if any(col in df.columns for col in cols):
                 cb = QtWidgets.QCheckBox(label)
                 cb.setChecked(label in ["Angle", "Torque Cmd"])
-                cb.stateChanged.connect(self.update_plot)
+                cb.stateChanged.connect(self._queue_plot_update)
                 self.curve_widget_layout.addWidget(cb)
                 self.curve_checks[label] = cb
                 self.curve_groups[label] = [c for c in cols if c in df.columns]
 
         power_cb = QtWidgets.QCheckBox("Power")
         power_cb.setChecked(True)
-        power_cb.stateChanged.connect(self.update_plot)
+        power_cb.stateChanged.connect(self._queue_plot_update)
         self.curve_widget_layout.addWidget(power_cb)
         self.curve_checks["__power__"] = power_cb
 
@@ -979,7 +1007,7 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
             else:
                 self.start_spin.setValue(self.end_spin.value())
         self._sync_sliders_from_spins()
-        self.update_plot()
+        self._queue_plot_update()
 
     def _get_time_bounds(self):
         if not self.data_bundle:
@@ -1038,25 +1066,25 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         self.start_spin.blockSignals(False)
         self.end_spin.blockSignals(False)
         self._sync_pan_from_spins()
-        self.update_plot()
+        self._queue_plot_update()
 
     def _on_tag_changed(self, *args):
         self._set_full_range()
-        self.update_plot()
+        self._queue_plot_update()
 
     def _on_invert_toggled(self):
         self.flexion_label.setText(
             "Flexion sign: Positive" if self.invert_check.isChecked() else "Flexion sign: Negative"
         )
-        self.update_plot()
+        self._queue_plot_update()
 
     def _window_changed(self):
         self._apply_pan_window()
-        self.update_plot()
+        self._queue_plot_update()
 
     def _pan_changed(self):
         self._apply_pan_window()
-        self.update_plot()
+        self._queue_plot_update()
 
     def _sync_pan_from_spins(self):
         tmin, tmax = self._get_time_bounds()
@@ -1100,7 +1128,10 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         self._sync_sliders_from_spins()
 
     def _recompute_velocity(self):
-        self.update_plot()
+        self._queue_plot_update()
+
+    def _queue_plot_update(self, *args):
+        self._plot_debounce.start()
 
     # ---------------------- Plot ----------------------
     def update_plot(self):
@@ -1193,19 +1224,19 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         }
         col_colors = {
             "imu_LTx": "#1f77b4",
-            "imu_RTx": "#ff7f0e",
+            "imu_RTx": "#e66100",
             "imu_Lvel": "#2ca02c",
             "imu_Rvel": "#d62728",
-            "M1_torque_command": "#9467bd",
-            "M2_torque_command": "#8c564b",
-            "raw_RExoTorque": "#4c78a8",
-            "raw_LExoTorque": "#72b7b2",
-            "filtered_RExoTorque": "#f58518",
-            "filtered_LExoTorque": "#e45756",
-            "L_P": "#17becf",
-            "R_P": "#7f7f7f",
-            "L_D": "#bcbd22",
-            "R_D": "#e377c2",
+            "M1_torque_command": "#7f0000",
+            "M2_torque_command": "#084594",
+            "raw_RExoTorque": "#fb6a4a",
+            "raw_LExoTorque": "#6baed6",
+            "filtered_RExoTorque": "#cb181d",
+            "filtered_LExoTorque": "#08519c",
+            "L_P": "#31a354",
+            "R_P": "#f16913",
+            "L_D": "#74c476",
+            "R_D": "#fdae6b",
         }
 
         fs_override = float(self.fs_spin.value())
@@ -1254,20 +1285,36 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
                     if self.invert_check.isChecked():
                         y = -y
                     color = col_colors.get(plot_key)
+                    line_style = "-"
+                    line_alpha = 0.95
+                    line_width = 1.8
+                    if plot_key in {"raw_LExoTorque", "raw_RExoTorque"}:
+                        line_style = ":"
+                        line_alpha = 0.8
+                        line_width = 1.3
+                    elif plot_key in {"M1_torque_command", "M2_torque_command"}:
+                        line_style = "--"
+                    elif plot_key in {"L_P", "R_P", "L_D", "R_D"}:
+                        line_style = "-."
+                        line_width = 1.5
                     if plot_key in {"imu_LTx", "imu_RTx", "imu_Lvel", "imu_Rvel"}:
-                        line = ax_l.plot(t, y, linewidth=1.6, color=color)[0]
+                        line = ax_l.plot(
+                            t, y, linewidth=line_width, linestyle=line_style, alpha=line_alpha, color=color
+                        )[0]
                     else:
-                        line = ax_t.plot(t, y, linewidth=1.6, linestyle="--", color=color)[0]
+                        line = ax_t.plot(
+                            t, y, linewidth=line_width, linestyle=line_style, alpha=line_alpha, color=color
+                        )[0]
                     lines.append(line)
                     labels.append(col_labels.get(plot_key, plot_key))
 
             if power_series is not None:
                 if self.global_lowpass.isChecked() and fs > 0 and fc > 0:
                     power_series = lowpass_butter(power_series, fs, fc=fc, order=2)
-                p_color = "#0020f1" if "Left" in title else "#ff0000"
+                p_color = "#3366cc" if "Left" in title else "#cc3300"
                 line = ax_p.plot(t, power_series, linewidth=1.4, color=p_color)[0]
-                ax_p.fill_between(t, 0, power_series, where=(power_series >= 0), color="#2ca02c", alpha=0.30)
-                ax_p.fill_between(t, 0, power_series, where=(power_series < 0), color="#d62728", alpha=0.30)
+                ax_p.fill_between(t, 0, power_series, where=(power_series >= 0), color="#66bb6a", alpha=0.24)
+                ax_p.fill_between(t, 0, power_series, where=(power_series < 0), color="#ef5350", alpha=0.22)
                 lines.append(line)
                 labels.append(f"{title} Power")
 
@@ -1277,7 +1324,13 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
             ax_l.grid(True, linestyle="--", alpha=0.4)
             ax_l.set_title(title)
             if lines:
-                ax_l.legend(lines, labels, loc="upper right")
+                ax_l.legend(
+                    lines, labels,
+                    loc="upper left",
+                    bbox_to_anchor=(1.01, 1.0),
+                    borderaxespad=0.0,
+                    fontsize=8,
+                )
 
         plot_side(ax_left, ax_left_r, ax_left_p, left_allowed, power_left, "Left Leg")
         plot_side(ax_right, ax_right_r, ax_right_p, right_allowed, power_right, "Right Leg")
@@ -1298,7 +1351,7 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         pos_text = f"Positive Power Ratio  L: {pos_l:.3f}  R: {pos_r:.3f}"
         self.figure.suptitle(f"{os.path.basename(self.current_path)} | {title_tag}\n{pos_text}")
 
-        self.figure.tight_layout(rect=[0, 0, 1, 0.96])
+        self.figure.tight_layout(rect=[0, 0, 0.84, 0.96])
         self.canvas.draw()
 
     # ---------------------- Save ----------------------
