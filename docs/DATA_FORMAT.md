@@ -91,3 +91,26 @@ Time_ms,imu_LTx,imu_RTx,imu_Lvel,imu_Rvel,M1_torque_command,M2_torque_command,ta
 | Figures | PDF (300 DPI) | `data_output/output/` | Analyzer, Gait Cycle, Filter-Delay |
 | Summary Report | CSV | `data_output/output/<name>.csv` | Report Tab |
 | Averaged Report | CSV | `data_output/output/<name>_avg.csv` | Report Tab |
+| Gait-Split CSV | CSV | user-chosen path, default `<name>_gaitsplit.csv` | Gait Split Tab |
+| Gait Profile Figure | PDF (300 DPI) | user-chosen path, default `<name>_gait_profiles.pdf` | Gait Split Tab |
+
+## Gait Split Output Columns
+
+These columns are appended to the CSV by the **Gait Split** tab and written when "Save CSV" is clicked.
+
+| Column | Type | Unit | Description |
+|--------|------|------|-------------|
+| `gait_cycle_L` | float | — | Left-leg gait cycle index (1-based). Rows not belonging to any complete cycle receive `NaN`. Cycle 1 = first complete cycle detected in the selected span. |
+| `gait_cycle_R` | float | — | Right-leg gait cycle index (1-based), independently numbered from left. |
+| `power_L` | float | W (if deg→rad conversion enabled) | Left instantaneous power = `vel_L (rad/s) × torque_L (Nm)`. Column name is literal `power_L` regardless of which velocity/torque columns were chosen. |
+| `power_R` | float | W | Right instantaneous power = `vel_R (rad/s) × torque_R (Nm)`. |
+
+### Power Metrics Definitions
+
+Computed by the **Power Metrics** button (Gait Split tab). Values are averaged across all detected cycles in the selected span.
+
+| Metric | Formula | Unit |
+|--------|---------|------|
+| `mean_positive_power` | mean( mean(P[P>0]) per cycle ) | W |
+| `mean_negative_power` | mean( mean(P[P<0]) per cycle ) | W |
+| `positive_power_ratio` | mean( \|pos\| / (\|pos\| + \|neg\|) per cycle ) | unitless 0–1 |

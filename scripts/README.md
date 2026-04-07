@@ -1,5 +1,18 @@
 # Scripts / 小工具脚本
+[status.sh](/Volumes/X10 Pro/Engineering For Lifelong Use/Exo-Data-Analysis-GUI/scripts/status.sh)
+看全局状态（当前分支、改动、分支列表、最近提交）。只读，不改任何东西。
 
+[push_current.sh](/Volumes/X10 Pro/Engineering For Lifelong Use/Exo-Data-Analysis-GUI/scripts/push_current.sh)
+在“当前非 main 分支”里：add + commit + push 一条龙。
+适合“我还在这个分支继续改，想更新 PR”。
+
+[new_feature.sh](/Volumes/X10 Pro/Engineering For Lifelong Use/Exo-Data-Analysis-GUI/scripts/new_feature.sh)
+把当前改动转成一个新分支并推上远程。
+适合“我现在有改动，但要开一个全新 feature/.../fix/... 分支”。
+
+[cleanup_branch.sh](/Volumes/X10 Pro/Engineering For Lifelong Use/Exo-Data-Analysis-GUI/scripts/cleanup_branch.sh)
+PR merge 后清理本地分支（切 main、pull、删本地分支）。
+注意：它不删远程分支。
 ## 脚本列表
 
 | 脚本 | 功能 | 用法 |

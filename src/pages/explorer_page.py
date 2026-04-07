@@ -79,6 +79,7 @@ class ExplorerPage(QtWidgets.QWidget):
         self._debounce.setSingleShot(True)
         self._debounce.setInterval(80)
         self._debounce.timeout.connect(self._do_update)
+        self._view_mode = "multiple"   # "single" | "multiple"
         self._build_ui()
 
     # ============================================================
@@ -183,6 +184,25 @@ class ExplorerPage(QtWidgets.QWidget):
         tag_bar = QtWidgets.QHBoxLayout()
         tag_bar.setContentsMargins(0, 2, 0, 2)
         tag_bar.setSpacing(4)
+
+        # ── Single / Multiple view toggle ────────────────────────────────────
+        self._btn_single   = QtWidgets.QPushButton("Single")
+        self._btn_multiple = QtWidgets.QPushButton("Multiple")
+        for btn in (self._btn_single, self._btn_multiple):
+            btn.setCheckable(True)
+            btn.setFixedWidth(72)
+        self._btn_multiple.setChecked(True)
+        self._btn_single.setToolTip(
+            "Plot all selected columns on one shared axis"
+        )
+        self._btn_multiple.setToolTip(
+            "Plot each selected column in its own subplot (stacked)"
+        )
+        self._btn_single.clicked.connect(self._set_view_single)
+        self._btn_multiple.clicked.connect(self._set_view_multiple)
+        tag_bar.addWidget(self._btn_single)
+        tag_bar.addWidget(self._btn_multiple)
+        tag_bar.addWidget(QtWidgets.QLabel("  "))   # spacer
 
         tag_bar.addWidget(QtWidgets.QLabel("View:"))
         self.tag_col_combo = QtWidgets.QComboBox()
@@ -677,6 +697,18 @@ class ExplorerPage(QtWidgets.QWidget):
     # ============================================================
     # Detail plot
     # ============================================================
+    def _set_view_single(self):
+        self._view_mode = "single"
+        self._btn_single.setChecked(True)
+        self._btn_multiple.setChecked(False)
+        self._update_detail()
+
+    def _set_view_multiple(self):
+        self._view_mode = "multiple"
+        self._btn_single.setChecked(False)
+        self._btn_multiple.setChecked(True)
+        self._update_detail()
+
     def _do_update(self):
         self._update_detail()
         self._update_stats()
@@ -723,10 +755,6 @@ class ExplorerPage(QtWidgets.QWidget):
             self.detail_canvas.draw()
             return
 
-        n = len(plot_cols)
-        axes = self.detail_fig.subplots(n, 1, sharex=True, squeeze=False)
-        axes = [axes[i, 0] for i in range(n)]
-
         tag_runs = self._get_tag_runs_in_range(t_min, t_max)
 
         default_colors = [
@@ -734,24 +762,64 @@ class ExplorerPage(QtWidgets.QWidget):
             "#9467bd", "#8c564b", "#e377c2", "#17becf",
         ]
 
-        for idx, ((col, _), ax) in enumerate(zip(plot_cols, axes)):
-            y = pd.to_numeric(self.df[col], errors="coerce").to_numpy(dtype=float)
-            color = default_colors[idx % len(default_colors)]
-            ax.plot(t_plot, y[mask][::step], linewidth=1.0, color=color)
-            ax.set_ylabel(col, fontsize=8)
-            ax.grid(True, alpha=0.3)
-            ax.set_xlim(t_min, t_max)
-            ax.tick_params(labelsize=7)
-            self._detail_axes_cols.append((ax, col))
+        xlabel = "Time (s)" if self.time_col else "Row Index"
 
+        if self._view_mode == "single":
+            # ── Independent Y axis per column (twinx), shared X ──────────────
+            # Column 0 → primary left axis.
+            # Columns 1..N-1 → twinx, spine offset 65px each to the right.
+            n = len(plot_cols)
+            ax0 = self.detail_fig.add_subplot(111)
+            all_axes = [ax0]
+            for i in range(1, n):
+                tw = ax0.twinx()
+                tw.spines["right"].set_position(("outward", 65 * (i - 1)))
+                all_axes.append(tw)
+
+            for idx, ((col, _), tax) in enumerate(zip(plot_cols, all_axes)):
+                y = pd.to_numeric(self.df[col], errors="coerce").to_numpy(dtype=float)
+                color = default_colors[idx % len(default_colors)]
+                tax.plot(t_plot, y[mask][::step], linewidth=1.0, color=color)
+                tax.set_ylabel(col, color=color, fontsize=8)
+                tax.tick_params(axis="y", labelcolor=color, labelsize=7)
+                tax.tick_params(axis="x", labelsize=7)
+                self._detail_axes_cols.append((tax, col))
+
+            # tag shading and x-axis decorations only on primary axis
             for ts, te, tag in tag_runs:
                 tc = self._tag_color_map.get(tag, "#cccccc")
-                ax.axvspan(ts, te, alpha=0.12, color=tc, zorder=0)
+                ax0.axvspan(ts, te, alpha=0.12, color=tc, zorder=0)
+            ax0.set_xlabel(xlabel, fontsize=9)
+            ax0.set_xlim(t_min, t_max)
+            ax0.grid(True, alpha=0.3)
 
-        xlabel = "Time (s)" if self.time_col else "Row Index"
-        axes[-1].set_xlabel(xlabel, fontsize=9)
+            # adjust right margin to expose offset spines (65px each extra axis)
+            right_margin = max(0.72, 0.97 - 0.065 * max(0, n - 1))
+            self.detail_fig.subplots_adjust(left=0.10, right=right_margin,
+                                            top=0.96, bottom=0.10)
+            axes = all_axes
 
-        self.detail_fig.tight_layout(h_pad=0.3)
+        else:
+            # ── Stacked subplots (Multiple mode, original behavior) ───────────
+            n = len(plot_cols)
+            axes = self.detail_fig.subplots(n, 1, sharex=True, squeeze=False)
+            axes = [axes[i, 0] for i in range(n)]
+
+            for idx, ((col, _), ax) in enumerate(zip(plot_cols, axes)):
+                y = pd.to_numeric(self.df[col], errors="coerce").to_numpy(dtype=float)
+                color = default_colors[idx % len(default_colors)]
+                ax.plot(t_plot, y[mask][::step], linewidth=1.0, color=color)
+                ax.set_ylabel(col, fontsize=8)
+                ax.grid(True, alpha=0.3)
+                ax.set_xlim(t_min, t_max)
+                ax.tick_params(labelsize=7)
+                self._detail_axes_cols.append((ax, col))
+                for ts, te, tag in tag_runs:
+                    tc = self._tag_color_map.get(tag, "#cccccc")
+                    ax.axvspan(ts, te, alpha=0.12, color=tc, zorder=0)
+
+            axes[-1].set_xlabel(xlabel, fontsize=9)
+            self.detail_fig.tight_layout(h_pad=0.3)
 
         # setup crosshair cursor
         self._cursor_lines = []
