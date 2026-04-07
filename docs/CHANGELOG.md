@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v1.2] - 2026-04-07
+
 ### Added
 - **Gait Split Tab** (`src/pages/gait_split_page.py`): Detect, label, and analyze gait cycles from hip angle data
 

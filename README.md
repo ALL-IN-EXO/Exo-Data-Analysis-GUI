@@ -3,7 +3,7 @@
 A PyQt5 desktop application for analyzing hip exoskeleton biomechanical data.
 Interactive visualization of angles, velocities, torques, power, and gait cycles.
 
-**Current Version: v1.1** (2026-03-20) | [Full Changelog](docs/CHANGELOG.md)
+**Current Version: v1.2** (2026-04-07) | [Full Changelog](docs/CHANGELOG.md)
 
 ## Project Structure
 
