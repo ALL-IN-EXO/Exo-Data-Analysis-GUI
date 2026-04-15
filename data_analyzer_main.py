@@ -42,16 +42,41 @@ def make_time_axis(time_series: pd.Series) -> np.ndarray:
     将 Time 列统一转换为以秒为单位、从 0 开始的时间轴。
     支持：全数字（可能是毫秒）、时间戳字符串、其他无法识别时退化为行号。
     """
+    def _sanitize_time_axis(t: np.ndarray) -> np.ndarray:
+        t = np.asarray(t, dtype=float)
+        if t.size == 0:
+            return t
+        finite = np.isfinite(t)
+        if finite.sum() < 2:
+            return np.arange(len(t), dtype=float)
+        if not finite.all():
+            idx = np.arange(len(t), dtype=float)
+            t = t.copy()
+            t[~finite] = np.interp(idx[~finite], idx[finite], t[finite])
+        t0 = t[0] if np.isfinite(t[0]) else t[np.where(np.isfinite(t))[0][0]]
+        t = t - t0
+        if not np.all(np.isfinite(t)):
+            return np.arange(len(t), dtype=float)
+        return t
+
     t_num = pd.to_numeric(time_series, errors="coerce")
     if t_num.notna().mean() > 0.9:
-        t = t_num.to_numpy()
-        dt_med = np.nanmedian(np.diff(t)) if len(t) > 1 else 10.0
+        t = t_num.to_numpy(dtype=float)
+        finite = np.isfinite(t)
+        if finite.sum() < 2:
+            return np.arange(len(time_series), dtype=float)
+        t_valid = t[finite]
+        diffs = np.diff(t_valid)
+        diffs = diffs[np.isfinite(diffs)]
+        dt_med = np.nanmedian(np.abs(diffs)) if len(diffs) > 0 else 10.0
+        t0 = t_valid[0]
         if 1.0 <= dt_med <= 1000.0:
-            return (t - t[0]) / 1000.0
-        return (t - t[0])
+            return _sanitize_time_axis((t - t0) / 1000.0)
+        return _sanitize_time_axis(t - t0)
     t_dt = pd.to_datetime(time_series, errors="coerce")
-    if t_dt.notna().mean() > 0.9:
-        return (t_dt - t_dt.iloc[0]).dt.total_seconds().to_numpy()
+    if t_dt.notna().mean() > 0.9 and t_dt.notna().any():
+        first_valid = t_dt[t_dt.notna()].iloc[0]
+        return _sanitize_time_axis((t_dt - first_valid).dt.total_seconds().to_numpy(dtype=float))
     return np.arange(len(time_series), dtype=float)
 
 
@@ -187,7 +212,7 @@ class MMEAnalyzer(QtWidgets.QMainWindow):
         self.explorer_tab = ExplorerPage(
             data_dir_provider=lambda: self.data_dir,
             mapping_path_provider=self._mapping_config_path,
-            show_browse=False,
+            show_browse=True,
         )
         self.tabs.addTab(self.explorer_tab, "Explorer")
 

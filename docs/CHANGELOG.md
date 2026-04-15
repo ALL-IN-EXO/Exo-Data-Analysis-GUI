@@ -27,6 +27,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Mode switch now hides irrelevant controls and clears stale checklist selections from the previous mode
 - **Missing feedback for failed multi-file tag compare** (`src/pages/gait_cycle_page.py`)
   - Added pre-checks for tag existence per file and explicit in-UI error messages instead of blank plots
+- **Explorer file access regression** (`data_analyzer_main.py`)
+  - Restored `Browse CSV` entry in Explorer so users can open files outside the current global data folder
+- **Crash on files with NaN/Inf timestamps** (`data_analyzer_main.py`, `src/pages/explorer_page.py`, `src/pages/gait_split_page.py`, `src/pages/gait_cycle_page.py`, `src/pages/filter_delay_page.py`, `src/utils.py`)
+  - Added robust time-axis sanitization (interpolate sparse invalid points, fallback to index when invalid)
+  - Replaced fragile x-limits derived from raw `t[0]/t[-1]` with finite bounds handling in plot views
 
 ## [v1.2] - 2026-04-07
 

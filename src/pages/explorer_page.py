@@ -28,17 +28,43 @@ except ImportError:
 
 # --------------- helpers ---------------
 
+def _sanitize_time_axis(t: np.ndarray) -> np.ndarray:
+    t = np.asarray(t, dtype=float)
+    if t.size == 0:
+        return t
+    finite = np.isfinite(t)
+    if finite.sum() < 2:
+        return np.arange(len(t), dtype=float)
+    if not finite.all():
+        idx = np.arange(len(t), dtype=float)
+        t = t.copy()
+        t[~finite] = np.interp(idx[~finite], idx[finite], t[finite])
+    t0 = t[0] if np.isfinite(t[0]) else t[np.where(np.isfinite(t))[0][0]]
+    t = t - t0
+    if not np.all(np.isfinite(t)):
+        return np.arange(len(t), dtype=float)
+    return t
+
+
 def _make_time_axis(time_series: pd.Series) -> np.ndarray:
     t_num = pd.to_numeric(time_series, errors="coerce")
     if t_num.notna().mean() > 0.9:
-        t = t_num.to_numpy()
-        dt_med = np.nanmedian(np.diff(t)) if len(t) > 1 else 10.0
+        t = t_num.to_numpy(dtype=float)
+        finite = np.isfinite(t)
+        if finite.sum() < 2:
+            return np.arange(len(time_series), dtype=float)
+        t_valid = t[finite]
+        diffs = np.diff(t_valid)
+        diffs = diffs[np.isfinite(diffs)]
+        dt_med = np.nanmedian(np.abs(diffs)) if len(diffs) > 0 else 10.0
+        t0 = t_valid[0]
         if 1.0 <= dt_med <= 1000.0:
-            return (t - t[0]) / 1000.0
-        return (t - t[0])
+            return _sanitize_time_axis((t - t0) / 1000.0)
+        return _sanitize_time_axis(t - t0)
     t_dt = pd.to_datetime(time_series, errors="coerce")
-    if t_dt.notna().mean() > 0.9:
-        return (t_dt - t_dt.iloc[0]).dt.total_seconds().to_numpy()
+    if t_dt.notna().mean() > 0.9 and t_dt.notna().any():
+        first_valid = t_dt[t_dt.notna()].iloc[0]
+        return _sanitize_time_axis((t_dt - first_valid).dt.total_seconds().to_numpy(dtype=float))
     return np.arange(len(time_series), dtype=float)
 
 
@@ -293,14 +319,18 @@ class ExplorerPage(QtWidgets.QWidget):
         self.df = df
         self.df_original = df.copy()
         self.csv_path = path
-        self._detect_columns()
-        self._update_file_info(path)
-        self._populate_tag_col_combo()
-        self._populate_checkboxes()
-        self._plot_overview()
-        self._update_detail()
-        self._update_stats()
-        self.tag_status.setText("")
+        try:
+            self._detect_columns()
+            self._update_file_info(path)
+            self._populate_tag_col_combo()
+            self._populate_checkboxes()
+            self._plot_overview()
+            self._update_detail()
+            self._update_stats()
+            self.tag_status.setText("")
+        except Exception as e:
+            self.file_label.setText(f"Render Error: {e}")
+            self.tag_status.setText("File loaded but failed to render. Check time column for invalid values.")
 
     def load_csv(self, path, sync_folder=True):
         if not path or not os.path.exists(path):
@@ -391,9 +421,10 @@ class ExplorerPage(QtWidgets.QWidget):
     # ============================================================
     def _update_file_info(self, path):
         nrows, ncols = self.df.shape
-        duration = float(self.t[-1] - self.t[0]) if len(self.t) > 1 else 0
-        if len(self.t) > 1 and self.time_col is not None:
-            dt = np.nanmedian(np.diff(self.t))
+        t_finite = self.t[np.isfinite(self.t)] if self.t is not None else np.array([])
+        duration = float(t_finite[-1] - t_finite[0]) if len(t_finite) > 1 else 0.0
+        if len(t_finite) > 1 and self.time_col is not None:
+            dt = np.nanmedian(np.diff(t_finite))
             fs = 1.0 / dt if dt > 0 else 0
             fs_text = f"{fs:.1f} Hz"
         else:
@@ -634,13 +665,21 @@ class ExplorerPage(QtWidgets.QWidget):
         if self.df is None or len(self.numeric_cols) == 0:
             self.overview_canvas.draw()
             return
+        t_all = _sanitize_time_axis(self.t)
+        finite_t = t_all[np.isfinite(t_all)]
+        if len(finite_t) < 2:
+            ax.text(0.5, 0.5, "Invalid time axis in this file",
+                    ha="center", va="center", fontsize=11, color="#999",
+                    transform=ax.transAxes)
+            self.overview_canvas.draw()
+            return
 
         # auto-pick up to 2 columns for overview
         preview_cols = self._pick_overview_cols()
 
-        n = len(self.t)
+        n = len(t_all)
         step = max(1, n // MAX_OVERVIEW_PTS)
-        t_ds = self.t[::step]
+        t_ds = t_all[::step]
 
         colors = ["#1f77b4", "#ff7f0e"]
         for i, col in enumerate(preview_cols):
@@ -648,7 +687,11 @@ class ExplorerPage(QtWidgets.QWidget):
             ax.plot(t_ds, y[::step], label=col, linewidth=0.8,
                     color=colors[i % len(colors)], alpha=0.7)
 
-        ax.set_xlim(self.t[0], self.t[-1])
+        t0 = float(np.nanmin(finite_t))
+        t1 = float(np.nanmax(finite_t))
+        if not np.isfinite(t0) or not np.isfinite(t1) or t1 <= t0:
+            t0, t1 = 0.0, 1.0
+        ax.set_xlim(t0, t1)
         ax.legend(loc="upper right", fontsize=7)
         ax.tick_params(labelsize=7)
         ax.set_ylabel("Overview", fontsize=8)
@@ -659,9 +702,9 @@ class ExplorerPage(QtWidgets.QWidget):
         self._draw_tag_shading(ax)
 
         # span selector (on top of tag shading)
-        t_range = self.t[-1] - self.t[0]
-        initial_start = self.t[0]
-        initial_end = self.t[0] + max(t_range * 0.2, 0.1)
+        t_range = t1 - t0
+        initial_start = t0
+        initial_end = t0 + max(t_range * 0.2, 0.1)
         self._span = (initial_start, initial_end)
 
         if SpanSelector is not None:
