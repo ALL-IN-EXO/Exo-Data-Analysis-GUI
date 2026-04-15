@@ -154,6 +154,10 @@ class ExplorerPage(QtWidgets.QWidget):
         self.file_label = QtWidgets.QLabel("No file loaded")
         self.file_label.setWordWrap(True)
         lv.addWidget(self.file_label)
+        self.copy_filename_btn = QtWidgets.QPushButton("Copy Filename")
+        self.copy_filename_btn.setEnabled(False)
+        self.copy_filename_btn.clicked.connect(self._copy_current_filename)
+        lv.addWidget(self.copy_filename_btn)
 
         # file info
         info_title = QtWidgets.QLabel("File Info")
@@ -319,6 +323,7 @@ class ExplorerPage(QtWidgets.QWidget):
         self.df = df
         self.df_original = df.copy()
         self.csv_path = path
+        self.copy_filename_btn.setEnabled(True)
         try:
             self._detect_columns()
             self._update_file_info(path)
@@ -336,6 +341,14 @@ class ExplorerPage(QtWidgets.QWidget):
         if not path or not os.path.exists(path):
             return
         self._load_csv(path, sync_folder=sync_folder)
+
+    def _copy_current_filename(self):
+        if not self.csv_path:
+            self.tag_status.setText("No file loaded to copy.")
+            return
+        filename = os.path.basename(self.csv_path)
+        QtWidgets.QApplication.clipboard().setText(filename)
+        self.tag_status.setText(f"Copied filename: {filename}")
 
     def set_folder(self, folder_path, selected_file=None):
         self._refresh_folder_files(folder_path, selected_file=selected_file)
