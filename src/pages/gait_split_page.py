@@ -45,15 +45,52 @@ _RIGHT_CANDIDATES = ("imu_RTx", "right_angle", "R_angle", "hip_R")
 
 # ─────────────────────────────── helpers ────────────────────────────────────
 
+def _sanitize_time_axis(t: np.ndarray) -> np.ndarray:
+    t = np.asarray(t, dtype=float)
+    if t.size == 0:
+        return t
+    finite = np.isfinite(t)
+    if finite.sum() < 2:
+        return np.arange(len(t), dtype=float)
+    if not finite.all():
+        idx = np.arange(len(t), dtype=float)
+        t = t.copy()
+        t[~finite] = np.interp(idx[~finite], idx[finite], t[finite])
+    t0 = t[0] if np.isfinite(t[0]) else t[np.where(np.isfinite(t))[0][0]]
+    t = t - t0
+    if not np.all(np.isfinite(t)):
+        return np.arange(len(t), dtype=float)
+    return t
+
+
+def _time_bounds(t: np.ndarray):
+    t = np.asarray(t, dtype=float)
+    finite = t[np.isfinite(t)]
+    if finite.size < 2:
+        return 0.0, 1.0
+    t0, t1 = float(np.nanmin(finite)), float(np.nanmax(finite))
+    if not np.isfinite(t0) or not np.isfinite(t1) or t1 <= t0:
+        return 0.0, 1.0
+    return t0, t1
+
+
 def _make_time_axis(series: pd.Series) -> np.ndarray:
     t_num = pd.to_numeric(series, errors="coerce")
     if t_num.notna().mean() > 0.9:
         t = t_num.to_numpy(dtype=float)
-        dt = np.nanmedian(np.diff(t)) if len(t) > 1 else 10.0
-        return (t - t[0]) / 1000.0 if 1.0 <= dt <= 1000.0 else (t - t[0])
+        finite = np.isfinite(t)
+        if finite.sum() < 2:
+            return np.arange(len(series), dtype=float)
+        t_valid = t[finite]
+        diffs = np.diff(t_valid)
+        diffs = diffs[np.isfinite(diffs)]
+        dt = np.nanmedian(np.abs(diffs)) if len(diffs) > 0 else 10.0
+        t0 = t_valid[0]
+        return _sanitize_time_axis((t - t0) / 1000.0 if 1.0 <= dt <= 1000.0 else (t - t0))
     t_dt = pd.to_datetime(series, errors="coerce")
-    if t_dt.notna().mean() > 0.9:
-        return (t_dt - t_dt.iloc[0]).dt.total_seconds().to_numpy()
+    if t_dt.notna().mean() > 0.9 and t_dt.notna().any():
+        first_valid = t_dt[t_dt.notna()].iloc[0]
+        return _sanitize_time_axis((t_dt - first_valid).dt.total_seconds().to_numpy(dtype=float))
     return np.arange(len(series), dtype=float)
 
 
@@ -450,12 +487,13 @@ class GaitSplitPage(QtWidgets.QWidget):
         self.peaks_L = np.array([], dtype=int)
         self.peaks_R = np.array([], dtype=int)
         self.peaks   = np.array([], dtype=int)
-        self._span = (self.t[0], self.t[0] + max((self.t[-1] - self.t[0]) * 0.2, 0.1))
+        t0, t1 = _time_bounds(self.t)
+        self._span = (t0, t0 + max((t1 - t0) * 0.2, 0.1))
 
         # File info
         self.info_label.setText(
             f"{len(df):,} rows  {len(df.columns)} cols\n"
-            f"Duration: {self.t[-1]:.1f} s\n"
+            f"Duration: {max(0.0, t1 - t0):.1f} s\n"
             f"FS ≈ {self.fs:.0f} Hz"
         )
 
@@ -499,7 +537,8 @@ class GaitSplitPage(QtWidgets.QWidget):
 
         cL = self.col_L_combo.currentText()
         cR = self.col_R_combo.currentText()
-        t  = self.t
+        t  = _sanitize_time_axis(self.t)
+        t0, t1 = _time_bounds(t)
 
         # downsample for speed (same as Explorer: max 2000 pts in overview)
         step = max(1, len(t) // 2000)
@@ -522,7 +561,7 @@ class GaitSplitPage(QtWidgets.QWidget):
                            self.df[_peak_col].to_numpy()[self.peaks],
                            color=_COLOR_ONSET, s=15, zorder=5, linewidths=0)
 
-        ax.set_xlim(t[0], t[-1])
+        ax.set_xlim(t0, t1)
         ax.set_ylabel("deg", fontsize=8)
         ax.tick_params(labelsize=7)
         ax.grid(True, ls="--", alpha=0.3)
@@ -532,8 +571,8 @@ class GaitSplitPage(QtWidgets.QWidget):
         # Only reset span if it falls outside the loaded data's time range.
         # Preserves user's selection across Detect / redraw cycles.
         s0, s1 = self._span
-        if not (t[0] <= s0 < s1 <= t[-1]):
-            self._span = (t[0], t[0] + max((t[-1] - t[0]) * 0.2, 0.1))
+        if not (t0 <= s0 < s1 <= t1):
+            self._span = (t0, t0 + max((t1 - t0) * 0.2, 0.1))
 
         if SpanSelector is not None:
             try:
