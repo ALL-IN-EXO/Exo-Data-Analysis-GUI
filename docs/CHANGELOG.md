@@ -12,6 +12,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Global file -> Explorer sync** (`data_analyzer_main.py`, `src/pages/explorer_page.py`)
   - Loading a file from the main Data panel now auto-loads the same file into Explorer
   - Main dataset selection now updates Explorer's folder list selection
+- **Explorer one-click filename copy** (`src/pages/explorer_page.py`)
+  - Added a `Copy Filename` button to copy the currently loaded file name to clipboard
 
 ### Changed
 - **Analyzer/Filter-Delay/Gait Cycle control panel layout** (`data_analyzer_main.py`, `src/pages/filter_delay_page.py`, `src/pages/gait_cycle_page.py`)
