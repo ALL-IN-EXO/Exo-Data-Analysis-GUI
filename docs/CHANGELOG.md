@@ -14,6 +14,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Main dataset selection now updates Explorer's folder list selection
 - **Explorer one-click filename copy** (`src/pages/explorer_page.py`)
   - Added a `Copy Filename` button to copy the currently loaded file name to clipboard
+- **Explorer cadence + speed-level estimate** (`src/pages/explorer_page.py`)
+  - Added automatic cadence estimation for the selected span
+  - Added speed-level labels based on cadence: 慢走 / 走路 / 快走 / 慢跑
 
 ### Changed
 - **Analyzer/Filter-Delay/Gait Cycle control panel layout** (`data_analyzer_main.py`, `src/pages/filter_delay_page.py`, `src/pages/gait_cycle_page.py`)

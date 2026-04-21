@@ -25,6 +25,11 @@ try:
 except ImportError:
     SpanSelector = None
 
+try:
+    from scipy.signal import find_peaks
+except ImportError:
+    find_peaks = None
+
 
 # --------------- helpers ---------------
 
@@ -69,6 +74,8 @@ def _make_time_axis(time_series: pd.Series) -> np.ndarray:
 
 
 _TIME_CANDIDATES = ["Time_ms", "time_ms", "time", "timestamp", "time_s", "elapsed"]
+_CADENCE_PRIMARY_COLS = ("imu_LTx", "imu_RTx")
+_CADENCE_HINTS = ("ltx", "rtx", "angle", "hip")
 
 MAX_OVERVIEW_PTS = 2000
 MAX_DETAIL_PTS = 5000
@@ -194,6 +201,10 @@ class ExplorerPage(QtWidgets.QWidget):
         stats_title = QtWidgets.QLabel("Statistics (selected range)")
         stats_title.setObjectName("sectionTitle")
         lv.addWidget(stats_title)
+        self.cadence_label = QtWidgets.QLabel("Cadence: N/A | Level: N/A")
+        self.cadence_label.setWordWrap(True)
+        self.cadence_label.setStyleSheet("font-family: monospace; font-size: 12px;")
+        lv.addWidget(self.cadence_label)
 
         stats_scroll = QtWidgets.QScrollArea()
         stats_scroll.setWidgetResizable(True)
@@ -1041,10 +1052,125 @@ class ExplorerPage(QtWidgets.QWidget):
     # ============================================================
     # Stats
     # ============================================================
+    def _speed_level_from_cadence(self, cadence_spm: float) -> str:
+        if cadence_spm < 90:
+            return "慢走"
+        if cadence_spm < 120:
+            return "走路"
+        if cadence_spm < 145:
+            return "快走"
+        return "慢跑"
+
+    def _pick_cadence_columns(self):
+        cols = []
+        for c in _CADENCE_PRIMARY_COLS:
+            if self.df is not None and c in self.df.columns and pd.api.types.is_numeric_dtype(self.df[c]):
+                cols.append(c)
+        if cols:
+            return cols
+        for c in self.numeric_cols:
+            cl = c.lower()
+            if any(h in cl for h in _CADENCE_HINTS):
+                cols.append(c)
+            if len(cols) >= 2:
+                break
+        return cols
+
+    def _estimate_leg_cadence(self, t_sel: np.ndarray, y_sel: np.ndarray):
+        finite = np.isfinite(t_sel) & np.isfinite(y_sel)
+        t = t_sel[finite]
+        y = y_sel[finite]
+        if len(t) < 20:
+            return None
+
+        dt = np.diff(t)
+        dt = dt[np.isfinite(dt) & (dt > 0)]
+        if len(dt) == 0:
+            return None
+        fs = 1.0 / float(np.nanmedian(dt))
+        if fs <= 0:
+            return None
+
+        y = y - float(np.nanmedian(y))
+        smooth_win = max(3, int(fs * 0.12))
+        if smooth_win % 2 == 0:
+            smooth_win += 1
+        if smooth_win >= 5 and len(y) > smooth_win:
+            kernel = np.ones(smooth_win, dtype=float) / float(smooth_win)
+            y = np.convolve(y, kernel, mode="same")
+
+        y_std = float(np.nanstd(y))
+        if not np.isfinite(y_std) or y_std <= 1e-6:
+            return None
+
+        min_dist = max(1, int(fs * 0.35))
+        prominence = max(0.15 * y_std, 0.2)
+        if find_peaks is not None:
+            peaks, _ = find_peaks(y, distance=min_dist, prominence=prominence)
+        else:
+            peaks = np.where((y[1:-1] >= y[:-2]) & (y[1:-1] > y[2:]))[0] + 1
+            filtered = []
+            for p in peaks:
+                if not filtered or (p - filtered[-1]) >= min_dist:
+                    filtered.append(int(p))
+            peaks = np.asarray(filtered, dtype=int)
+
+        if len(peaks) < 3:
+            return None
+
+        intervals = np.diff(t[peaks])
+        intervals = intervals[np.isfinite(intervals) & (intervals >= 0.35) & (intervals <= 2.5)]
+        if len(intervals) < 2:
+            return None
+
+        stride_sec = float(np.nanmedian(intervals))
+        if stride_sec <= 0:
+            return None
+        return 120.0 / stride_sec
+
+    def _update_cadence_estimate(self):
+        if self.df is None:
+            self.cadence_label.setText("Cadence: N/A | Level: N/A")
+            return
+
+        t_min, t_max = self._span
+        mask = (self.t >= t_min) & (self.t <= t_max) & np.isfinite(self.t)
+        if int(np.sum(mask)) < 20:
+            self.cadence_label.setText("Cadence: N/A | Level: N/A (selected range too short)")
+            return
+
+        t_sel = self.t[mask]
+        dur = float(np.nanmax(t_sel) - np.nanmin(t_sel)) if len(t_sel) > 1 else 0.0
+        if dur < 2.0:
+            self.cadence_label.setText("Cadence: N/A | Level: N/A (selected range < 2s)")
+            return
+
+        cols = self._pick_cadence_columns()
+        if not cols:
+            self.cadence_label.setText("Cadence: N/A | Level: N/A (no angle column found)")
+            return
+
+        cadence_vals = []
+        for col in cols:
+            y = pd.to_numeric(self.df[col], errors="coerce").to_numpy(dtype=float)
+            cad = self._estimate_leg_cadence(t_sel, y[mask])
+            if cad is not None and np.isfinite(cad):
+                cadence_vals.append(float(cad))
+
+        if not cadence_vals:
+            self.cadence_label.setText("Cadence: N/A | Level: N/A (insufficient gait peaks)")
+            return
+
+        cadence_spm = float(np.nanmedian(cadence_vals))
+        level = self._speed_level_from_cadence(cadence_spm)
+        self.cadence_label.setText(f"Cadence: {cadence_spm:.1f} steps/min | Level: {level}")
+
     def _update_stats(self):
         if self.df is None:
             self.stats_label.setText("Load a file to begin.")
+            self.cadence_label.setText("Cadence: N/A | Level: N/A")
             return
+        self._update_cadence_estimate()
         checked = self._col_order if self._col_order else self._get_checked_columns()
         if not checked:
             self.stats_label.setText("Check columns to see statistics.")
