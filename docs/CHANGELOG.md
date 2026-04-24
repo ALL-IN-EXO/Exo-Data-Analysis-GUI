@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS packaging script** (`scripts/build_mac_JZ.sh`)
+  - Added one-command macOS packaging flow for `data_analyzer_main.py` using PyInstaller
+  - Produces `.app` and release `.zip` under `release/mac/<build_tag>/`
+  - Uses external icon source by default: `Hip Exo Controller All in one with Apple GUI/scripts/exoanalysis.png`
 - **Explorer quick file switching** (`src/pages/explorer_page.py`)
   - Added a folder-level CSV list in Explorer for one-click switching between files in the same directory
   - Added folder refresh control and folder path display inside Explorer

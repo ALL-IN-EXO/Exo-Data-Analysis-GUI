@@ -13,6 +13,10 @@
 [cleanup_branch.sh](/Volumes/X10 Pro/Engineering For Lifelong Use/Exo-Data-Analysis-GUI/scripts/cleanup_branch.sh)
 PR merge 后清理本地分支（切 main、pull、删本地分支）。
 注意：它不删远程分支。
+
+[build_mac_JZ.sh](/Volumes/X10 Pro/Engineering For Lifelong Use/Exo-Data-Analysis-GUI/scripts/build_mac_JZ.sh)
+macOS 一键打包发布脚本（PyInstaller，生成 `.app` + `.zip`）。
+默认入口是 `data_analyzer_main.py`，默认 icon 使用 `Hip Exo Controller.../scripts/exoanalysis.png`。
 ## 脚本列表
 
 | 脚本 | 功能 | 用法 |
@@ -21,6 +25,7 @@ PR merge 后清理本地分支（切 main、pull、删本地分支）。
 | `new_feature.sh` | 开新分支 → 提交 → 推送（一条龙） | `./scripts/new_feature.sh feature/xxx "commit信息"` |
 | `cleanup_branch.sh` | PR merge 后清理（切main、拉最新、删分支） | `./scripts/cleanup_branch.sh` |
 | `status.sh` | 一键查看 Git 状态全貌 | `./scripts/status.sh` |
+| `build_mac_JZ.sh` | macOS 打包发布（.app + .zip） | `./scripts/build_mac_JZ.sh` |
 
 ## Git 协作扫盲（中文教程）
 

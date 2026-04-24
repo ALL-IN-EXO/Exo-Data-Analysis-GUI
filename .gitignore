@@ -1,4 +1,22 @@
 
 __pycache__/
 *.pyc
+*.pyo
 ._*
+.DS_Store
+
+# Python packaging/build artifacts
+*.egg-info/
+dist/
+build/
+*.spec
+
+# App release artifacts
+release/
+
+# Runtime/log/local env
+.env
+*.log
+
+# Generated analysis outputs
+data_output/output/
