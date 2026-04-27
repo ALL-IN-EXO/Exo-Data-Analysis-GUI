@@ -4,6 +4,7 @@
 import os
 import sys
 import json
+import re
 import shutil
 from dataclasses import dataclass
 
@@ -35,6 +36,23 @@ from src.pages.report_page import ReportPage
 
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "data_output", "sample_data")
 MAPPING_FILENAME = ".column_mapping.json"
+APP_NAME = "Hip Exo Data Analyzer"
+APP_VERSION_FALLBACK = "1.0"
+
+
+def read_latest_release_version() -> str:
+    """Read latest released version from docs/CHANGELOG.md (first vX.Y heading)."""
+    changelog_path = os.path.join(os.path.dirname(__file__), "docs", "CHANGELOG.md")
+    pattern = re.compile(r"^##\s+\[v?(\d+(?:\.\d+)*)\]")
+    try:
+        with open(changelog_path, "r", encoding="utf-8") as f:
+            for line in f:
+                m = pattern.match(line.strip())
+                if m:
+                    return m.group(1)
+    except OSError:
+        pass
+    return APP_VERSION_FALLBACK
 
 
 def make_time_axis(time_series: pd.Series) -> np.ndarray:
@@ -170,7 +188,12 @@ class ColumnMappingDialog(QtWidgets.QDialog):
 class MMEAnalyzer(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Hip Exo Data Analyzer (v1.0)")
+        self.app_version = read_latest_release_version()
+        self.setWindowTitle(f"{APP_NAME} (v{self.app_version})")
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.setApplicationName(APP_NAME)
+            app.setApplicationVersion(self.app_version)
         screen = QtWidgets.QApplication.primaryScreen()
         if screen:
             geom = screen.availableGeometry()

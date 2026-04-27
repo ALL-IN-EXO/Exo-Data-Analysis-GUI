@@ -6,6 +6,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **macOS packaging script** (`scripts/build_mac.sh`)
+  - Added one-command macOS packaging flow for `data_analyzer_main.py` using PyInstaller
+  - Release artifacts are exported to `release/mac/<build_tag>/`
+  - Supports icon conversion from external PNG source to `.icns`
+
+### Changed
+- **Version source unified to CHANGELOG**
+  - Packaging version now prefers `docs/CHANGELOG.md` latest released heading (`## [vX.Y]`)
+  - Generated app naming now includes version by default (e.g., `HipExoDataAnalyzer_v1.3.app`)
+  - `Info.plist` now stamps bundle name/display name and version using the release version
+- **Main window version label source** (`data_analyzer_main.py`)
+  - App window title now reads version from `docs/CHANGELOG.md` instead of hardcoded `v1.0`
+
+## [v1.3] - 2026-04-27
+
+### Added
 - **Explorer quick file switching** (`src/pages/explorer_page.py`)
   - Added a folder-level CSV list in Explorer for one-click switching between files in the same directory
   - Added folder refresh control and folder path display inside Explorer
